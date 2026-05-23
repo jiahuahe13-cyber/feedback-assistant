@@ -350,6 +350,12 @@ textarea{min-height:120px;resize:vertical;}
   color:#2563eb;
 }
 
+.teacher-display[readonly]{
+  background:#f8fafc !important;
+  color:#0f172a !important;
+  cursor:not-allowed;
+}
+
 .group-student-panel{
   border:1px solid #e5e7eb;
   border-radius:14px;
@@ -2717,7 +2723,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="graduation-cap"></i><span>授课老师</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="graduation-cap"></i>
-      <select id="teacherName"></select>
+      <input id="teacherName" class="teacher-display" readonly>
     </div>
   </div>
   <div>
@@ -2906,7 +2912,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="graduation-cap"></i><span>授课老师</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="graduation-cap"></i>
-      <select id="groupTeacher"></select>
+      <input id="groupTeacher" class="teacher-display" readonly>
     </div>
   </div>
 </div>
@@ -2973,7 +2979,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
 <div class="row">
   <div>
     <label>默认老师</label>
-    <select id="newClassTeacher"></select>
+    <input id="newClassTeacher" class="teacher-display" readonly>
   </div>
   <div>
     <label>&nbsp;</label>
@@ -3693,6 +3699,10 @@ function cleanText(value){
   return String(value||"").trim();
 }
 
+function getRegisteredTeacherName(){
+  return cleanText(currentProfile?.teacher_name||currentUser?.email?.split("@")[0]||"老师");
+}
+
 function randomPick(arr,count=5){
   const copy=[...new Set((arr||[]).filter(Boolean))];
   copy.sort(()=>Math.random()-0.5);
@@ -4194,7 +4204,6 @@ function onClassSelected(){
 
   if(c){
     document.getElementById("courseType").value=c.courseType||document.getElementById("courseType").value;
-    document.getElementById("teacherName").value=c.teacherName||document.getElementById("teacherName").value;
 
     c.studentIds.forEach(id=>{
       const s=appData.students.find(x=>x.id===id);
@@ -4221,10 +4230,6 @@ function onStudentSelected(){
       document.getElementById("courseType").value=s.courseType;
       renderProfessionalTags();
     }
-
-    if(s.teacherName){
-      document.getElementById("teacherName").value=s.teacherName;
-    }
   }
 }
 
@@ -4240,7 +4245,7 @@ function addClass(){
     id:uid(),
     name,
     courseType:document.getElementById("newClassCourse").value,
-    teacherName:document.getElementById("newClassTeacher").value,
+    teacherName:getRegisteredTeacherName(),
     studentIds:[]
   });
 
@@ -4378,13 +4383,10 @@ function deleteStudent(classId,studentId){
 }
 
 function syncGroupCommonOptions(){
-  const teacherValue=document.getElementById("groupTeacher")?.value;
   const courseValue=document.getElementById("groupCourse")?.value;
-
-  setSelectOptions("groupTeacher",teacherOptions);
   setSelectOptions("groupCourse",courseOptions);
 
-  if(teacherValue)document.getElementById("groupTeacher").value=teacherValue;
+  document.getElementById("groupTeacher").value=getRegisteredTeacherName();
   if(courseValue)document.getElementById("groupCourse").value=courseValue;
 
   if(!document.querySelector("#groupStyleTags button")){
@@ -5267,11 +5269,8 @@ function refreshLucideIcons(){
 }
 
 function init(){
-  setSelectOptions("teacherName",teacherOptions);
   setSelectOptions("courseType",courseOptions);
   setSelectOptions("newClassCourse",courseOptions);
-  setSelectOptions("newClassTeacher",teacherOptions);
-  setSelectOptions("groupTeacher",teacherOptions);
   setSelectOptions("groupCourse",courseOptions);
 
   setupSingleButtons();
@@ -7175,29 +7174,12 @@ async function afterLogin(){
   saveAppData();
 }
 
-function ensureSelectOption(selectId,value){
-  const el=document.getElementById(selectId);
-  if(!el||!value)return;
-
-  const exists=Array.from(el.options).some(o=>o.value===value);
-
-  if(!exists){
-    const option=document.createElement("option");
-    option.value=value;
-    option.textContent=value;
-    el.appendChild(option);
-  }
-
-  el.value=value;
-}
-
 function applyCurrentTeacherToForms(){
-  if(!currentProfile?.teacher_name)return;
-
-  const name=currentProfile.teacher_name;
+  const name=getRegisteredTeacherName();
 
   ["teacherName","groupTeacher","newClassTeacher"].forEach(id=>{
-    ensureSelectOption(id,name);
+    const el=document.getElementById(id);
+    if(el)el.value=name;
   });
 }
 
