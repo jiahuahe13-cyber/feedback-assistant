@@ -5863,7 +5863,11 @@ function generateAITeachingAnalysis(){
     return;
   }
 
-  const records=getStudentRecordsByRange(studentName,range);
+  let records=getStudentRecordsByRange(studentName,range);
+
+  if(!records.length){
+    records=appData.history.filter(r=>r.studentName===studentName);
+  }
 
   if(!records.length){
     document.getElementById("aiAnalysisResult").value=`暂无 ${studentName} 在该时间范围内的课评记录。`;
@@ -6692,14 +6696,21 @@ function generateGrowthPosterReport(){
     return;
   }
 
-  const months=getMonthsBetween(startMonth,endMonth);
+  let months=getMonthsBetween(startMonth,endMonth);
+  let usedFallbackRange=false;
 
   if(!months.length){
     alert("开始月份不能晚于结束月份");
     return;
   }
 
-  const records=getStudentRangeRecords(studentName,startMonth,endMonth);
+  let records=getStudentRangeRecords(studentName,startMonth,endMonth);
+
+  if(!records.length){
+    records=appData.history.filter(r=>r.studentName===studentName);
+    months=getStudentAllMonths(studentName);
+    usedFallbackRange=true;
+  }
 
   if(!records.length){
     alert("该学生在所选月份范围内暂无课评记录");
@@ -6736,7 +6747,9 @@ function generateGrowthPosterReport(){
   document.getElementById("futureDirectionBox").innerText=future;
   document.getElementById("teachingAdviceBox").innerText=teachingAdvice;
 
-  const rangeText=startMonth===endMonth ? `${startMonth} 月度成长记录` : `${startMonth} 至 ${endMonth} 阶段成长记录`;
+  const rangeText=usedFallbackRange
+    ? (months.length ? `全部历史成长记录（${months[0]} 至 ${months[months.length-1]}）` : "全部历史成长记录")
+    : (startMonth===endMonth ? `${startMonth} 月度成长记录` : `${startMonth} 至 ${endMonth} 阶段成长记录`);
 
   document.getElementById("posterStudentTitle").innerText=`${studentName}成长报告`;
   document.getElementById("posterMonthText").innerText=rangeText;
