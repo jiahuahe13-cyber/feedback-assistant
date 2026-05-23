@@ -5694,7 +5694,10 @@ function countKeywordHits(text,keywords){
   let score=0;
 
   keywords.forEach(word=>{
-    const reg=new RegExp(word,"g");
+    const safeWord=String(word||"").replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    if(!safeWord)return;
+
+    const reg=new RegExp(safeWord,"g");
     const matches=text.match(reg);
     if(matches){
       score+=matches.length;
@@ -6740,6 +6743,16 @@ function generateGrowthPosterReport(){
   document.getElementById("posterTalentText").innerText=talent.type.map(t=>"✔ "+t).join("\\n");
   document.getElementById("posterMonthlySummaryText").innerText=getPosterSummaryText(monthlyBlocks);
   document.getElementById("posterFutureText").innerText=future;
+
+  currentPosterAutoContent={
+    title:`${studentName} · 成长报告`,
+    monthText:rangeText,
+    talent:talent.text,
+    summary:getPosterSummaryText(monthlyBlocks),
+    future,
+    qrTitle:document.getElementById("posterQrTitleEditor")?.value||"扫码了解课程",
+    qrSub:document.getElementById("posterQrSubEditor")?.value||""
+  };
 
   currentGrowthReportText=`
 【${studentName} ${rangeText}】
