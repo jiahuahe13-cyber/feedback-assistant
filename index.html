@@ -2202,14 +2202,6 @@ V3.6 底部导航苹果风优化
 }
 
 
-/* 课堂基础表现多选标签优化 */
-.basic-multi button.active{
-  background:#dbeafe !important;
-  border-color:#2563eb !important;
-  color:#2563eb !important;
-  box-shadow:0 8px 22px rgba(37,99,235,.10);
-}
-
 /* 基础表现标签：单独反馈 + 群反馈 多选高亮 */
 .basic-multi button.active,
 .group-basic button.active{
@@ -2217,6 +2209,112 @@ V3.6 底部导航苹果风优化
   border-color:#2563eb !important;
   color:#2563eb !important;
   box-shadow:0 8px 22px rgba(37,99,235,.10);
+}
+
+.tags button,
+.student-check-item{
+  touch-action:manipulation;
+  user-select:none;
+}
+
+textarea{
+  min-height:168px !important;
+  line-height:1.75 !important;
+  overflow:auto;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+#courseContent,
+#groupCourseContent,
+#extra,
+#homework,
+#groupHomework,
+#result{
+  min-height:210px !important;
+}
+
+#result{
+  min-height:380px !important;
+}
+
+.group-extra{
+  min-height:150px !important;
+}
+
+input,
+select,
+textarea{
+  font-size:16px !important;
+}
+
+@media(max-width:760px){
+  html{
+    -webkit-text-size-adjust:100%;
+  }
+
+  .top-bar{
+    gap:10px !important;
+  }
+
+  .top-left{
+    min-width:0;
+  }
+
+  .suggest-btn span{
+    display:none;
+  }
+
+  .feedback-mode{
+    display:grid !important;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .title-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .change-btn,
+  .small-btn,
+  .danger-btn,
+  .gray-btn{
+    width:100%;
+    min-height:44px;
+  }
+
+  .tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  .tags button,
+  .student-check-item{
+    margin:0;
+    min-height:42px;
+    max-width:100%;
+    white-space:normal;
+    line-height:1.45;
+  }
+
+  textarea{
+    min-height:190px !important;
+  }
+
+  #courseContent,
+  #groupCourseContent,
+  #extra,
+  #homework,
+  #groupHomework,
+  #result{
+    min-height:240px !important;
+  }
+
+  .group-student-panel{
+    padding:16px !important;
+    overflow:hidden;
+  }
 }
 
 
@@ -3563,6 +3661,7 @@ const feedbackStyles=[
 let appData=loadAppData();
 let currentFeedbackMode="single";
 let groupResults=[];
+let groupPanelDrafts={};
 
 function openSuggestModal(){
   document.getElementById("suggestModal").style.display="flex";
@@ -3716,6 +3815,16 @@ function setupSingleButtons(){
       const parent=button.parentElement;
       parent.querySelectorAll("button").forEach(btn=>btn.classList.remove("active"));
       button.classList.add("active");
+    });
+  });
+}
+
+function setupBasicMultiButtons(root=document){
+  root.querySelectorAll(".basic-multi button").forEach(button=>{
+    if(button.dataset.multiBound==="1")return;
+    button.dataset.multiBound="1";
+    button.addEventListener("click",()=>{
+      button.classList.toggle("active");
     });
   });
 }
@@ -4269,10 +4378,19 @@ function deleteStudent(classId,studentId){
 }
 
 function syncGroupCommonOptions(){
+  const teacherValue=document.getElementById("groupTeacher")?.value;
+  const courseValue=document.getElementById("groupCourse")?.value;
+
   setSelectOptions("groupTeacher",teacherOptions);
   setSelectOptions("groupCourse",courseOptions);
 
-  renderGroupStyles();
+  if(teacherValue)document.getElementById("groupTeacher").value=teacherValue;
+  if(courseValue)document.getElementById("groupCourse").value=courseValue;
+
+  if(!document.querySelector("#groupStyleTags button")){
+    renderGroupStyles();
+  }
+
   renderClassSelects();
 }
 
@@ -4288,6 +4406,10 @@ function renderGroupStudentSelection(){
   const list=document.getElementById("groupStudentList");
 
   if(!list)return;
+
+  const selectedIds=new Set(
+    Array.from(list.querySelectorAll(".student-check-item.active")).map(el=>el.dataset.studentId)
+  );
 
   list.innerHTML="";
 
@@ -4311,6 +4433,10 @@ function renderGroupStudentSelection(){
     item.className="student-check-item";
     item.dataset.studentId=s.id;
     item.innerText=s.name;
+
+    if(selectedIds.has(s.id)){
+      item.classList.add("active");
+    }
 
     item.addEventListener("click",()=>{
       item.classList.toggle("active");
@@ -4353,9 +4479,31 @@ function renderMiniButtons(container,list,onClick){
   });
 }
 
+function mergeSelectedOptions(list,selected=[]){
+  return [...new Set([...(selected||[]), ...(list||[])].filter(Boolean))];
+}
+
+function setActiveButtonsByText(container,selected=[]){
+  const selectedSet=new Set(selected||[]);
+  container.querySelectorAll("button").forEach(btn=>{
+    btn.classList.toggle("active",selectedSet.has(btn.innerText));
+  });
+}
+
+function captureGroupPanelDrafts(){
+  document.querySelectorAll(".group-student-panel").forEach(panel=>{
+    const id=panel.dataset.studentId;
+    if(!id)return;
+
+    groupPanelDrafts[id]=getGroupStudentData(panel);
+  });
+}
+
 function renderGroupStudentPanels(){
   const area=document.getElementById("groupStudentPanels");
   if(!area)return;
+
+  captureGroupPanelDrafts();
 
   const students=getGroupSelectedStudents();
   const courseType=document.getElementById("groupCourse")?.value||courseOptions[0];
@@ -4369,6 +4517,7 @@ function renderGroupStudentPanels(){
   }
 
   students.forEach(s=>{
+    const draft=groupPanelDrafts[s.id]||{};
     const panel=document.createElement("div");
     panel.className="group-student-panel";
     panel.dataset.studentId=s.id;
@@ -4508,6 +4657,7 @@ function renderGroupStudentPanels(){
     panel.querySelectorAll(".group-basic button").forEach(btn=>{
       btn.addEventListener("click",()=>{
         btn.classList.toggle("active");
+        captureGroupPanelDrafts();
       });
     });
 
@@ -4520,35 +4670,49 @@ function renderGroupStudentPanels(){
 
     function refreshGood(){
       if(goodSearch)goodSearch.value="";
-      renderMiniButtons(goodBox,randomPick(bank?.good||[],6));
+      renderMiniButtons(goodBox,mergeSelectedOptions(randomPick(bank?.good||[],6),draft.professionalGood));
+      setActiveButtonsByText(goodBox,draft.professionalGood);
     }
 
     function refreshWeak(){
       if(weakSearch)weakSearch.value="";
-      renderMiniButtons(weakBox,randomPick(bank?.weak||[],6),()=>{
+      renderMiniButtons(weakBox,mergeSelectedOptions(randomPick(bank?.weak||[],6),draft.professionalWeak),()=>{
         updateGroupImprove(panel,courseType);
+        captureGroupPanelDrafts();
       });
-      improveBox.innerHTML='<div style="color:#999;font-size:14px;margin-top:8px;">请先勾选薄弱点。</div>';
+      setActiveButtonsByText(weakBox,draft.professionalWeak);
+      if(draft.professionalWeak?.length||draft.professionalImprove?.length){
+        updateGroupImprove(panel,courseType,draft.professionalImprove);
+      }else{
+        improveBox.innerHTML='<div style="color:#999;font-size:14px;margin-top:8px;">请先勾选薄弱点。</div>';
+      }
     }
 
     function refreshImprove(){
       if(improveSearch)improveSearch.value="";
-      updateGroupImprove(panel,courseType);
+      updateGroupImprove(panel,courseType,draft.professionalImprove);
     }
 
     if(goodSearch){
       goodSearch.addEventListener("input",()=>{
         const list=filterByKeyword(bank?.good||[],goodSearch.value);
-        renderMiniButtons(goodBox,list);
+        const selected=Array.from(goodBox.querySelectorAll("button.active")).map(b=>b.innerText);
+        renderMiniButtons(goodBox,mergeSelectedOptions(list,selected));
+        setActiveButtonsByText(goodBox,selected);
+        captureGroupPanelDrafts();
       });
     }
 
     if(weakSearch){
       weakSearch.addEventListener("input",()=>{
         const list=filterByKeyword(bank?.weak||[],weakSearch.value);
-        renderMiniButtons(weakBox,list,()=>{
+        const selected=Array.from(weakBox.querySelectorAll("button.active")).map(b=>b.innerText);
+        renderMiniButtons(weakBox,mergeSelectedOptions(list,selected),()=>{
           updateGroupImprove(panel,courseType);
+          captureGroupPanelDrafts();
         });
+        setActiveButtonsByText(weakBox,selected);
+        captureGroupPanelDrafts();
       });
     }
 
@@ -4557,7 +4721,10 @@ function renderGroupStudentPanels(){
         const weak=Array.from(panel.querySelectorAll(".group-weak button.active")).map(b=>b.innerText);
         const suggestions=getMatchedImproveSuggestionsByWeak(courseType,weak);
         const list=filterByKeyword(suggestions,improveSearch.value);
-        renderMiniButtons(improveBox,list);
+        const selected=Array.from(improveBox.querySelectorAll("button.active")).map(b=>b.innerText);
+        renderMiniButtons(improveBox,mergeSelectedOptions(list,selected));
+        setActiveButtonsByText(improveBox,selected);
+        captureGroupPanelDrafts();
       });
     }
 
@@ -4567,18 +4734,36 @@ function renderGroupStudentPanels(){
 
     refreshGood();
     refreshWeak();
+
+    [
+      [".group-attendance",draft.attendance],
+      [".group-focus",draft.focus],
+      [".group-understanding",draft.understanding],
+      [".group-participation",draft.participation],
+      [".group-handsOn",draft.handsOn],
+      [".group-logicThinkingBasic",draft.logicThinkingBasic],
+      [".group-problemSolvingBasic",draft.problemSolvingBasic],
+      [".group-expressionSummary",draft.expressionSummary]
+    ].forEach(([selector,value])=>{
+      setActiveButtonsByText(panel.querySelector(selector),String(value||"").split("、").filter(Boolean));
+    });
+
+    panel.querySelector(".group-extra").value=draft.extra||"";
+    panel.querySelector(".group-extra").addEventListener("input",captureGroupPanelDrafts);
   });
 
   refreshLucideIcons();
 }
 
-function updateGroupImprove(panel,courseType){
+function updateGroupImprove(panel,courseType,keepSelected=[]){
   const weak=Array.from(panel.querySelectorAll(".group-weak button.active")).map(b=>b.innerText);
   const suggestions=getMatchedImproveSuggestionsByWeak(courseType,weak);
   const improveSearch=panel.querySelector(".group-improve-search");
   const keyword=improveSearch?improveSearch.value:"";
-  const list=keyword?filterByKeyword(suggestions,keyword):randomPick(suggestions,6);
+  const selected=keepSelected.length?keepSelected:Array.from(panel.querySelectorAll(".group-improve button.active")).map(b=>b.innerText);
+  const list=mergeSelectedOptions(keyword?filterByKeyword(suggestions,keyword):randomPick(suggestions,6),selected);
   renderMiniButtons(panel.querySelector(".group-improve"),list);
+  setActiveButtonsByText(panel.querySelector(".group-improve"),selected);
 }
 
 function getGroupMultiSelected(panel,selector){
@@ -4767,10 +4952,6 @@ ${data.attendance?`✅ 出勤情况：${data.attendance}`:""}
 ${data.focus?`🎯 专注度：${data.focus}`:""}
 ${data.understanding?`💡 理解程度：${data.understanding}`:""}
 ${data.participation?`🙋 课堂参与：${data.participation}`:""}
-${data.handsOn?`🛠️ 动手操作：${data.handsOn}`:""}
-${data.logicThinkingBasic?`🧩 逻辑思维：${data.logicThinkingBasic}`:""}
-${data.problemSolvingBasic?`🔧 问题解决：${data.problemSolvingBasic}`:""}
-${data.expressionSummary?`🗣️ 表达总结：${data.expressionSummary}`:""}
 ${data.handsOn?`🛠️ 动手操作：${data.handsOn}`:""}
 ${data.logicThinkingBasic?`🧩 逻辑思维：${data.logicThinkingBasic}`:""}
 ${data.problemSolvingBasic?`🔧 问题解决：${data.problemSolvingBasic}`:""}
@@ -5094,6 +5275,7 @@ function init(){
   setSelectOptions("groupCourse",courseOptions);
 
   setupSingleButtons();
+  setupBasicMultiButtons();
   renderFeedbackStyles();
   renderGroupStyles();
   renderClassSelects();
@@ -6758,8 +6940,11 @@ V4.0 Supabase 邮箱注册登录 + 老师资料 + 云端数据
 ===================== */
 
 // 第一步：到 Supabase 项目后台复制这两个值，替换下面占位内容。
+
 const SUPABASE_URL = "https://tdfwfcnxoeesmmkhkjci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YYuW07Bv64VYssby2bR86g_QQGvsB18";
+
+
 
 let supabaseClient = null;
 let currentUser = null;
