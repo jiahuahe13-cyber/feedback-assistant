@@ -3998,6 +3998,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
         <th>班级</th>
         <th>学生</th>
         <th>历史课评</th>
+        <th>员工管理</th>
       </tr>
     </thead>
     <tbody id="adminUsersTable"></tbody>
@@ -5382,6 +5383,82 @@ async function createTeacherByAdmin(){
     await renderAdminDashboard();
   }catch(error){
     if(status)status.innerText=`创建失败：${error.message}`;
+  }
+}
+
+async function callAdminManageEmployee(payload){
+  const {data:sessionData}=await supabaseClient.auth.getSession();
+  const accessToken=sessionData?.session?.access_token;
+
+  if(!accessToken){
+    throw new Error("登录态失效，请重新登录管理员账号。");
+  }
+
+  const response=await fetch(`${SUPABASE_URL}/functions/v1/${ADMIN_MANAGE_EMPLOYEE_FUNCTION}`,{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer ${accessToken}`
+    },
+    body:JSON.stringify(payload)
+  });
+
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){
+    throw new Error(data?.error||"操作失败");
+  }
+  return data;
+}
+
+async function updateEmployeeFromAdmin(userId){
+  if(!userId)return;
+  if(!currentProfile||currentProfile.role!=="admin"){
+    alert("仅管理员可操作。");
+    return;
+  }
+
+  const roleEl=document.getElementById(`adminRole_${userId}`);
+  const statusEl=document.getElementById(`adminStatus_${userId}`);
+  const nextRole=cleanText(roleEl?.value);
+  const nextStatus=cleanText(statusEl?.value);
+
+  if(!nextRole||!nextStatus){
+    alert("角色和状态不能为空。");
+    return;
+  }
+
+  try{
+    await callAdminManageEmployee({
+      action:"update_profile",
+      target_user_id:userId,
+      role:nextRole,
+      status:nextStatus
+    });
+    alert("员工资料已更新。");
+    await renderAdminDashboard();
+  }catch(error){
+    alert(`更新失败：${error.message}`);
+  }
+}
+
+async function resetEmployeePasswordByAdmin(userId){
+  if(!userId)return;
+  const newPassword=prompt("请输入新密码（至少 6 位）");
+  if(!newPassword)return;
+  if(newPassword.length<6){
+    alert("密码至少 6 位。");
+    return;
+  }
+
+  try{
+    await callAdminManageEmployee({
+      action:"reset_password",
+      target_user_id:userId,
+      new_password:newPassword
+    });
+    alert("密码已重置。");
+  }catch(error){
+    alert(`重置失败：${error.message}`);
   }
 }
 
@@ -10091,6 +10168,7 @@ V4.0 Supabase 邮箱注册登录 + 老师资料 + 云端数据
 const SUPABASE_URL = "https://tdfwfcnxoeesmmkhkjci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YYuW07Bv64VYssby2bR86g_QQGvsB18";
 const ADMIN_CREATE_TEACHER_FUNCTION = "admin-create-teacher";
+const ADMIN_MANAGE_EMPLOYEE_FUNCTION = "admin-manage-employee";
 
 
 
@@ -10302,8 +10380,8 @@ async function upsertProfileWithFallback(payload){
 }
 
 async function fetchProfileWithFallback(userId){
-  const fullColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,teaching_track,subjects,organization_name";
-  const baseColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,organization_name";
+  const fullColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,status,teaching_track,subjects,organization_name";
+  const baseColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,status,organization_name";
 
   let {data,error}=await supabaseClient
     .from("profiles")
@@ -10372,8 +10450,7 @@ async function saveTeacherProfile(){
 
   try{
     const avatarUrl=await uploadTeacherAvatar();
-
-    await upsertProfileWithFallback({
+    const savedProfilePayload={
       id:currentUser.id,
       email:currentUser.email,
       teacher_name:teacherName,
@@ -10382,24 +10459,51 @@ async function saveTeacherProfile(){
       subjects,
       organization_name:cleanText(currentProfile?.organization_name||""),
       avatar_url:avatarUrl,
-      last_login_at:new Date().toISOString()
-    });
+      last_login_at:new Date().toISOString(),
+      role:cleanText(currentProfile?.role||"teacher")
+    };
+
+    await upsertProfileWithFallback(savedProfilePayload);
+    currentProfile={...(currentProfile||{}),...savedProfilePayload};
 
     showAuthMessage("老师资料保存成功。","success");
-    try{
-      await afterLogin();
-    }catch(error){
-      console.error("afterLogin failed after profile save:",error);
-      document.getElementById("authOverlay").style.display="none";
-      document.getElementById("authBar").style.display="flex";
-      applyCurrentTeacherToForms();
-      updateHeroGreeting();
-      setCloudSyncStatus("failed","部分云端加载失败，请稍后重试");
-    }
+    finalizeLoginUI(currentProfile);
+    loadCloudAppData().catch(error=>{
+      console.error("post-save cloud load failed:",error);
+    });
 
   }catch(error){
     showAuthMessage(error.message,"error");
   }
+}
+
+function finalizeLoginUI(profile){
+  applyCurrentTeacherToForms();
+  refreshTeacherCourseOptions();
+  syncHomeTeachingConfig();
+  updateHeroGreeting();
+
+  document.getElementById("authOverlay").style.display="none";
+  document.getElementById("authBar").style.display="flex";
+
+  document.getElementById("currentTeacherNameText").innerText=getTeacherProfileTitle(profile||{});
+  document.getElementById("currentTeacherEmailText").innerText=profile?.email||currentUser?.email||"";
+  document.getElementById("currentTeacherAvatar").src=profile?.avatar_url||"";
+
+  const isAdmin=profile?.role==="admin";
+  document.querySelectorAll(".admin-only").forEach(el=>{
+    if(!isAdmin){
+      el.style.display="none";
+      return;
+    }
+    el.style.display=el.classList.contains("admin-block") ? "block" : "inline-flex";
+  });
+
+  if(isAdmin){
+    prepareAdminCreateTeacherForm();
+  }
+
+  saveAppData();
 }
 
 async function afterLogin(){
@@ -10427,38 +10531,19 @@ async function afterLogin(){
 
   currentProfile=profile;
 
+  if(cleanText(profile.status||"active")==="inactive"){
+    showAuthMessage("你的账号已被停用，请联系机构管理员。","error");
+    await logout();
+    return;
+  }
+
   await supabaseClient
     .from("profiles")
     .update({last_login_at:new Date().toISOString()})
     .eq("id",currentUser.id);
 
   await loadCloudAppData();
-  applyCurrentTeacherToForms();
-  refreshTeacherCourseOptions();
-  syncHomeTeachingConfig();
-  updateHeroGreeting();
-
-  document.getElementById("authOverlay").style.display="none";
-  document.getElementById("authBar").style.display="flex";
-
-  document.getElementById("currentTeacherNameText").innerText=getTeacherProfileTitle(profile);
-  document.getElementById("currentTeacherEmailText").innerText=profile.email||currentUser.email||"";
-  document.getElementById("currentTeacherAvatar").src=profile.avatar_url||"";
-
-  const isAdmin=profile.role==="admin";
-  document.querySelectorAll(".admin-only").forEach(el=>{
-    if(!isAdmin){
-      el.style.display="none";
-      return;
-    }
-    el.style.display=el.classList.contains("admin-block") ? "block" : "inline-flex";
-  });
-
-  if(isAdmin){
-    prepareAdminCreateTeacherForm();
-  }
-
-  saveAppData();
+  finalizeLoginUI(profile);
 }
 
 function applyCurrentTeacherToForms(){
@@ -10654,6 +10739,10 @@ async function renderAdminDashboard(){
     totalStudents+=students.length;
     totalHistory+=history.length;
 
+    const roleValue=cleanText(p.role||"teacher");
+    const statusValue=cleanText(p.status||"active");
+    const isSelf=p.id===currentUser?.id;
+
     const tr=document.createElement("tr");
     tr.innerHTML=`
       <td><img src="${p.avatar_url||""}" class="admin-avatar"></td>
@@ -10669,6 +10758,21 @@ async function renderAdminDashboard(){
       <td>${classes.length}</td>
       <td>${students.length}</td>
       <td>${history.length}</td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:150px;">
+          <select id="adminRole_${p.id}" ${isSelf?'disabled':''}>
+            <option value="teacher" ${roleValue==="teacher"?"selected":""}>teacher</option>
+            <option value="manager" ${roleValue==="manager"?"selected":""}>manager</option>
+            <option value="admin" ${roleValue==="admin"?"selected":""}>admin</option>
+          </select>
+          <select id="adminStatus_${p.id}" ${isSelf?'disabled':''}>
+            <option value="active" ${statusValue==="active"?"selected":""}>active</option>
+            <option value="inactive" ${statusValue==="inactive"?"selected":""}>inactive</option>
+          </select>
+          <button class="small-btn" onclick="updateEmployeeFromAdmin('${p.id}')" ${isSelf?'disabled':''}>保存角色/状态</button>
+          <button class="small-btn" onclick="resetEmployeePasswordByAdmin('${p.id}')">重置密码</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
