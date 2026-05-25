@@ -2439,6 +2439,8 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
 .auth-card{
   width:100%;
   max-width:460px;
+  max-height:92vh;
+  overflow-y:auto;
   background:rgba(255,255,255,.88);
   backdrop-filter:blur(22px) saturate(160%);
   -webkit-backdrop-filter:blur(22px) saturate(160%);
@@ -2533,6 +2535,20 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   display:none;
 }
 
+.profile-subject-head{
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.profile-subject-count{
+  font-size:13px;
+  color:#2563eb;
+  font-weight:800;
+}
+
 .profile-track-hint{
   margin-top:6px;
   font-size:13px;
@@ -2542,6 +2558,13 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
 
 .profile-subject-list{
   margin-top:10px;
+  max-height:220px;
+  overflow:auto;
+  padding-right:4px;
+}
+
+.profile-subject-list.expanded{
+  max-height:none;
 }
 
 .profile-subject-list button{
@@ -2566,6 +2589,87 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   font-size:14px;
   color:#94a3b8;
   line-height:1.6;
+}
+
+.home-config-card{
+  margin:10px 0 16px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:14px;
+}
+
+.home-config-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.home-config-title{
+  font-size:15px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.home-config-tip{
+  font-size:12px;
+  color:#64748b;
+}
+
+.home-subject-list{
+  margin-top:8px;
+  max-height:136px;
+  overflow:auto;
+}
+
+.home-subject-list button{
+  margin:6px 6px 0 0;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid #d1d5db;
+  background:#fff;
+  color:#374151;
+  cursor:pointer;
+}
+
+.home-subject-list button.active{
+  background:#dbeafe;
+  border-color:#2563eb;
+  color:#2563eb;
+}
+
+.home-config-actions{
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.home-config-status{
+  font-size:12px;
+  color:#64748b;
+  line-height:1.4;
+}
+
+.profile-subject-toggle{
+  margin-top:10px;
+  border:none;
+  background:transparent;
+  color:#2563eb;
+  font-weight:800;
+  cursor:pointer;
+  padding:0;
+}
+
+.profile-save-wrap{
+  position:sticky;
+  bottom:0;
+  margin:14px -6px 0;
+  padding:10px 6px 6px;
+  background:linear-gradient(to top,rgba(255,255,255,.98),rgba(255,255,255,.85),rgba(255,255,255,0));
+  backdrop-filter:blur(4px);
 }
 
 .auth-avatar-preview{
@@ -2731,6 +2835,22 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
 }
 
 @media(max-width:760px){
+  .auth-overlay{
+    padding:10px;
+    align-items:flex-start;
+  }
+
+  .auth-card{
+    max-width:100%;
+    max-height:96vh;
+    border-radius:24px;
+    padding:18px;
+  }
+
+  .profile-subject-list{
+    max-height:180px;
+  }
+
   .auth-bar{
     flex-direction:column;
     align-items:flex-start;
@@ -2806,10 +2926,16 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
       </select>
       <div class="profile-track-hint">先选择教学方向，再多选授课科目。</div>
 
-      <label>授课科目（多选）</label>
+      <div class="profile-subject-head">
+        <label style="margin:0;">授课科目（多选）</label>
+        <div id="profileSubjectCount" class="profile-subject-count">已选 0 项</div>
+      </div>
       <div id="profileSubjects" class="profile-subject-list"></div>
+      <button id="profileSubjectToggle" class="profile-subject-toggle" type="button" onclick="toggleProfileSubjectsExpand()" style="display:none;">展开更多科目</button>
 
-      <button class="auth-btn" onclick="saveTeacherProfile()">保存老师资料并进入系统</button>
+      <div class="profile-save-wrap">
+        <button class="auth-btn" onclick="saveTeacherProfile()">保存老师资料并进入系统</button>
+      </div>
     </div>
 
     <div id="authMsg" class="auth-msg"></div>
@@ -2875,6 +3001,30 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
 
 <div id="singleFeedbackArea">
 <h3 class="sub-title"><i data-lucide="user"></i><span>单独反馈</span></h3>
+
+<div class="home-config-card">
+  <div class="home-config-head">
+    <div class="home-config-title">首页教学设置</div>
+    <div id="homeSubjectCount" class="home-config-tip">已选 0 科</div>
+  </div>
+  <div class="row">
+    <div>
+      <label>教学方向</label>
+      <select id="homeTeachingTrack" onchange="onHomeTeachingTrackChange()">
+        <option value="">请选择教学方向</option>
+        <option value="编程/机器人">编程/机器人</option>
+        <option value="K12课程">K12课程</option>
+        <option value="兴趣班">兴趣班</option>
+      </select>
+    </div>
+  </div>
+  <label>授课科目（多选）</label>
+  <div id="homeSubjects" class="home-subject-list"></div>
+  <div class="home-config-actions">
+    <button class="small-btn" type="button" onclick="saveHomeTeachingConfig()">应用到当前账号</button>
+    <div id="homeConfigStatus" class="home-config-status"></div>
+  </div>
+</div>
 
 <div class="row">
   <div>
@@ -4754,7 +4904,7 @@ function refreshCourseSelect(id,preferredValue="",extraValue=""){
   if(!el)return;
 
   const currentValue=preferredValue||el.value||"";
-  const options=getAvailableCourseOptions(extraValue||currentValue);
+  const options=getAvailableCourseOptions(extraValue||"");
 
   setSelectOptions(id,options);
 
@@ -4792,6 +4942,33 @@ function getSelectedProfileSubjects(){
   return Array.from(document.querySelectorAll("#profileSubjects button.active")).map(btn=>btn.innerText);
 }
 
+function updateProfileSubjectMeta(){
+  const box=document.getElementById("profileSubjects");
+  const countEl=document.getElementById("profileSubjectCount");
+  const toggleBtn=document.getElementById("profileSubjectToggle");
+
+  if(countEl){
+    countEl.innerText=`已选 ${getSelectedProfileSubjects().length} 项`;
+  }
+
+  if(!box||!toggleBtn){
+    return;
+  }
+
+  const hasOverflow=box.scrollHeight > box.clientHeight + 6;
+  const expanded=box.classList.contains("expanded");
+
+  toggleBtn.style.display=hasOverflow || expanded ? "inline-block" : "none";
+  toggleBtn.innerText=expanded ? "收起科目" : "展开更多科目";
+}
+
+function toggleProfileSubjectsExpand(){
+  const box=document.getElementById("profileSubjects");
+  if(!box)return;
+  box.classList.toggle("expanded");
+  updateProfileSubjectMeta();
+}
+
 function renderProfileSubjects(selectedSubjects=[]){
   const box=document.getElementById("profileSubjects");
   const track=document.getElementById("profileTeachingTrack")?.value||"";
@@ -4803,10 +4980,13 @@ function renderProfileSubjects(selectedSubjects=[]){
 
   if(!track){
     box.innerHTML='<div class="profile-empty-text">请先选择教学方向，再勾选授课科目。</div>';
+    box.classList.remove("expanded");
+    updateProfileSubjectMeta();
     return;
   }
 
   box.innerHTML="";
+  box.classList.remove("expanded");
 
   subjects.forEach(subject=>{
     const btn=document.createElement("button");
@@ -4819,10 +4999,13 @@ function renderProfileSubjects(selectedSubjects=[]){
 
     btn.addEventListener("click",()=>{
       btn.classList.toggle("active");
+      updateProfileSubjectMeta();
     });
 
     box.appendChild(btn);
   });
+
+  requestAnimationFrame(updateProfileSubjectMeta);
 }
 
 function handleTeachingTrackChange(){
@@ -4845,6 +5028,128 @@ function populateTeacherProfileForm(profileData={}){
   document.getElementById("profileAvatarPreview").src=avatarUrl;
 
   renderProfileSubjects(subjects);
+}
+
+function getSelectedHomeSubjects(){
+  return Array.from(document.querySelectorAll("#homeSubjects button.active")).map(btn=>btn.innerText);
+}
+
+function updateHomeSubjectCount(){
+  const countEl=document.getElementById("homeSubjectCount");
+  if(countEl){
+    countEl.innerText=`已选 ${getSelectedHomeSubjects().length} 科`;
+  }
+}
+
+function renderHomeSubjects(selectedSubjects=[]){
+  const box=document.getElementById("homeSubjects");
+  const track=document.getElementById("homeTeachingTrack")?.value||"";
+  if(!box)return;
+
+  const subjects=getSubjectsByTrack(track);
+  const selectedSet=new Set(selectedSubjects.filter(item=>subjects.includes(item)));
+
+  if(!track){
+    box.innerHTML='<div class="profile-empty-text">请先选择教学方向，再勾选授课科目。</div>';
+    updateHomeSubjectCount();
+    return;
+  }
+
+  box.innerHTML="";
+  subjects.forEach(subject=>{
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.innerText=subject;
+    if(selectedSet.has(subject)){
+      btn.classList.add("active");
+    }
+    btn.addEventListener("click",()=>{
+      btn.classList.toggle("active");
+      updateHomeSubjectCount();
+    });
+    box.appendChild(btn);
+  });
+  updateHomeSubjectCount();
+}
+
+function onHomeTeachingTrackChange(){
+  const track=document.getElementById("homeTeachingTrack")?.value||"";
+  const selected=getSelectedHomeSubjects().filter(subject=>getSubjectsByTrack(track).includes(subject));
+  renderHomeSubjects(selected);
+}
+
+function syncHomeTeachingConfig(){
+  const track=getRegisteredTeachingTrack();
+  const subjects=getRegisteredSubjects();
+  const trackSel=document.getElementById("homeTeachingTrack");
+  if(trackSel){
+    trackSel.value=track;
+  }
+  renderHomeSubjects(subjects);
+}
+
+async function saveHomeTeachingConfig(){
+  const status=document.getElementById("homeConfigStatus");
+  const track=document.getElementById("homeTeachingTrack")?.value||"";
+  const subjects=getSelectedHomeSubjects();
+
+  if(!track){
+    if(status)status.innerText="请先选择教学方向。";
+    return;
+  }
+  if(!subjects.length){
+    if(status)status.innerText="请至少选择 1 个授课科目。";
+    return;
+  }
+
+  currentProfile=currentProfile||{};
+  currentProfile.teaching_track=track;
+  currentProfile.subjects=subjects;
+
+  refreshTeacherCourseOptions();
+  renderGroupStudentPanels();
+  updateHeroGreeting();
+
+  if(document.getElementById("currentTeacherNameText")){
+    document.getElementById("currentTeacherNameText").innerText=getTeacherProfileTitle(currentProfile);
+  }
+
+  if(status)status.innerText="已应用到当前页面，正在同步云端…";
+
+  if(currentUser&&supabaseClient){
+    try{
+      let updatePayload={
+        teaching_track:track,
+        subjects
+      };
+
+      for(let i=0;i<3;i++){
+        const {error}=await supabaseClient
+          .from("profiles")
+          .update(updatePayload)
+          .eq("id",currentUser.id);
+
+        if(!error){
+          if(status)status.innerText="已同步到云端。";
+          populateTeacherProfileForm(currentProfile);
+          return;
+        }
+
+        const missingCol=getMissingProfileColumnFromError(error);
+        if(!missingCol||!(missingCol in updatePayload)){
+          throw error;
+        }
+
+        delete updatePayload[missingCol];
+      }
+
+      if(status)status.innerText="已应用到当前页面（云端字段暂未开放）。";
+    }catch(error){
+      if(status)status.innerText=`已应用到当前页面（云端同步失败：${error.message}）`;
+    }
+  }else if(status){
+    status.innerText="已应用到当前页面。";
+  }
 }
 
 function updateHeroGreeting(){
@@ -9904,6 +10209,7 @@ async function afterLogin(){
   await loadCloudAppData();
   applyCurrentTeacherToForms();
   refreshTeacherCourseOptions();
+  syncHomeTeachingConfig();
   updateHeroGreeting();
 
   document.getElementById("authOverlay").style.display="none";
