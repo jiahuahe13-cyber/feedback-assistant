@@ -2815,6 +2815,49 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   border:1px solid #e5e7eb;
 }
 
+.admin-create-card{
+  margin-top:14px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:14px;
+}
+
+.admin-create-title{
+  font-size:16px;
+  font-weight:900;
+  color:#0f172a;
+  margin-bottom:10px;
+}
+
+.admin-subject-list{
+  margin-top:8px;
+  max-height:180px;
+  overflow:auto;
+}
+
+.admin-subject-list button{
+  margin:6px 6px 0 0;
+  padding:7px 12px;
+  border-radius:999px;
+  border:1px solid #d1d5db;
+  background:#fff;
+  color:#374151;
+  cursor:pointer;
+}
+
+.admin-subject-list button.active{
+  background:#dbeafe;
+  border-color:#2563eb;
+  color:#2563eb;
+}
+
+.admin-create-status{
+  margin-top:8px;
+  font-size:13px;
+  color:#64748b;
+}
+
 .admin-table{
   width:100%;
   border-collapse:collapse;
@@ -3800,11 +3843,6 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   </div>
 
   <div class="poster-card">
-    <h3>续费风险摘要</h3>
-    <div id="posterRiskSummaryText">等待生成</div>
-  </div>
-
-  <div class="poster-card">
     <h3>课程内容 / 知识点</h3>
     <div id="posterCourseContentText">等待生成</div>
   </div>
@@ -3874,6 +3912,56 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   管理员可以查看注册用户资料、最近登录时间、每位老师创建的班级、学生和历史课评数量。密码由 Supabase Auth 安全处理，不会明文保存，也不会在后台展示。
 </div>
 
+<div id="adminCreateCard" class="admin-create-card admin-only admin-block">
+  <div class="admin-create-title">新增老师账号</div>
+  <div class="row">
+    <div>
+      <label>老师姓名</label>
+      <input id="adminTeacherName" placeholder="例如：张老师">
+    </div>
+    <div>
+      <label>老师邮箱</label>
+      <input id="adminTeacherEmail" type="email" placeholder="例如：teacher@example.com">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>初始密码</label>
+      <input id="adminTeacherPassword" type="password" placeholder="至少 6 位">
+    </div>
+    <div>
+      <label>性别</label>
+      <select id="adminTeacherGender">
+        <option value="">请选择</option>
+        <option value="女">女</option>
+        <option value="男">男</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>教学方向</label>
+      <select id="adminTeacherTrack" onchange="renderAdminTeacherSubjects()">
+        <option value="">请选择教学方向</option>
+        <option value="编程/机器人">编程/机器人</option>
+        <option value="K12课程">K12课程</option>
+        <option value="兴趣班">兴趣班</option>
+      </select>
+    </div>
+    <div>
+      <label>所属机构</label>
+      <input id="adminTeacherOrganization" readonly>
+    </div>
+  </div>
+  <label>授课科目（多选）</label>
+  <div id="adminTeacherSubjects" class="admin-subject-list"></div>
+  <div class="actions">
+    <button class="small-btn" onclick="createTeacherByAdmin()">创建老师账号</button>
+  </div>
+  <div id="adminCreateStatus" class="admin-create-status"></div>
+</div>
+
 <div class="admin-grid">
   <div class="admin-data-card">
     <h3>注册老师数</h3>
@@ -3903,6 +3991,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
         <th>性别</th>
         <th>教学方向</th>
         <th>授课科目</th>
+        <th>所属机构</th>
         <th>角色</th>
         <th>注册时间</th>
         <th>最近登录</th>
@@ -4010,7 +4099,10 @@ const courseOptions=[
 ];
 
 const teachingTrackSubjectMap={
-  "编程/机器人":["Scratch","Python","C++","Lasy","WEDO","机器人搭建","比赛集训"],
+  "编程/机器人":[
+    "Scratch","Python","C++","Lasy","WEDO","机器人搭建","比赛集训",
+    ...programmingCourseOptions
+  ],
   "K12课程":[...k12StageCourseOptions,...k12SubjectOptions],
   "兴趣班":[...interestCourseOptions]
 };
@@ -4023,6 +4115,9 @@ const subjectCourseMap={
   "WEDO":["Wedo编程机器人"],
   "机器人搭建":["硬件编程 Mata Q","硬件编程 Matatalab","9666简易机械","Junior机器人"],
   "比赛集训":["AIC比赛集训","Icode比赛集训","科技创新大赛集训"],
+  "Wedo":["Wedo编程机器人"],
+  "MatataLab":["硬件编程 Matatalab"],
+  ...Object.fromEntries(programmingCourseOptions.map(course=>[course,[course]])),
   ...Object.fromEntries(k12StageCourseOptions.map(course=>[course,[course]])),
   ...Object.fromEntries(k12SubjectOptions.map(subject=>[
     subject,
@@ -4719,6 +4814,10 @@ function getRegisteredTeachingTrack(){
   return cleanText(currentProfile?.teaching_track||"");
 }
 
+function getRegisteredOrganizationName(){
+  return cleanText(currentProfile?.organization_name||"");
+}
+
 function getRegisteredSubjects(){
   return Array.isArray(currentProfile?.subjects)
     ? currentProfile.subjects.map(cleanText).filter(Boolean)
@@ -5160,6 +5259,129 @@ async function saveHomeTeachingConfig(){
     }
   }else if(status){
     status.innerText="已应用到当前页面。";
+  }
+}
+
+function getSelectedAdminTeacherSubjects(){
+  return Array.from(document.querySelectorAll("#adminTeacherSubjects button.active")).map(btn=>btn.innerText);
+}
+
+function renderAdminTeacherSubjects(selectedSubjects=[]){
+  const box=document.getElementById("adminTeacherSubjects");
+  const track=document.getElementById("adminTeacherTrack")?.value||"";
+
+  if(!box)return;
+
+  const subjects=getSubjectsByTrack(track);
+  const selectedSet=new Set(selectedSubjects.filter(item=>subjects.includes(item)));
+
+  if(!track){
+    box.innerHTML='<div class="profile-empty-text">请先选择教学方向，再勾选授课科目。</div>';
+    return;
+  }
+
+  box.innerHTML="";
+  subjects.forEach(subject=>{
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.innerText=subject;
+    if(selectedSet.has(subject)){
+      btn.classList.add("active");
+    }
+    btn.addEventListener("click",()=>{
+      btn.classList.toggle("active");
+    });
+    box.appendChild(btn);
+  });
+}
+
+function prepareAdminCreateTeacherForm(){
+  const orgInput=document.getElementById("adminTeacherOrganization");
+  if(orgInput){
+    orgInput.value=getRegisteredOrganizationName();
+  }
+  renderAdminTeacherSubjects([]);
+}
+
+async function createTeacherByAdmin(){
+  if(!supabaseClient||!currentUser||!currentProfile||currentProfile.role!=="admin"){
+    alert("仅管理员可创建老师账号。");
+    return;
+  }
+
+  const status=document.getElementById("adminCreateStatus");
+  const teacher_name=cleanText(document.getElementById("adminTeacherName")?.value);
+  const email=cleanText(document.getElementById("adminTeacherEmail")?.value).toLowerCase();
+  const password=String(document.getElementById("adminTeacherPassword")?.value||"");
+  const gender=cleanText(document.getElementById("adminTeacherGender")?.value);
+  const teaching_track=cleanText(document.getElementById("adminTeacherTrack")?.value);
+  const subjects=getSelectedAdminTeacherSubjects();
+  const organization_name=getRegisteredOrganizationName();
+
+  if(!teacher_name||!email||!password||!teaching_track){
+    if(status)status.innerText="请完整填写姓名、邮箱、初始密码、教学方向。";
+    return;
+  }
+
+  if(password.length<6){
+    if(status)status.innerText="初始密码至少 6 位。";
+    return;
+  }
+
+  if(!subjects.length){
+    if(status)status.innerText="请至少选择 1 个授课科目。";
+    return;
+  }
+
+  if(!organization_name){
+    if(status)status.innerText="当前管理员未设置所属机构，请先在 Supabase profiles 补齐 organization_name。";
+    return;
+  }
+
+  if(status)status.innerText="正在创建老师账号…";
+
+  try{
+    const {data:sessionData}=await supabaseClient.auth.getSession();
+    const accessToken=sessionData?.session?.access_token;
+
+    if(!accessToken){
+      throw new Error("登录态失效，请重新登录管理员账号。");
+    }
+
+    const response=await fetch(`${SUPABASE_URL}/functions/v1/${ADMIN_CREATE_TEACHER_FUNCTION}`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:`Bearer ${accessToken}`
+      },
+      body:JSON.stringify({
+        teacher_name,
+        email,
+        password,
+        gender,
+        teaching_track,
+        subjects,
+        organization_name
+      })
+    });
+
+    const payload=await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(payload?.error||"创建失败，请检查 Edge Function 日志。");
+    }
+
+    document.getElementById("adminTeacherName").value="";
+    document.getElementById("adminTeacherEmail").value="";
+    document.getElementById("adminTeacherPassword").value="";
+    document.getElementById("adminTeacherGender").value="";
+    document.getElementById("adminTeacherTrack").value="";
+    prepareAdminCreateTeacherForm();
+
+    if(status)status.innerText="创建成功：老师账号已生成，可直接登录。";
+    await renderAdminDashboard();
+  }catch(error){
+    if(status)status.innerText=`创建失败：${error.message}`;
   }
 }
 
@@ -9530,15 +9752,6 @@ function getPosterSummaryText(monthlyBlocks){
   }).join("\n\n");
 }
 
-function extractRiskSummaryFromText(summaryText=""){
-  const matched=String(summaryText).split("\n").find(line=>line.includes("续费风险摘要："));
-  if(matched){
-    return matched.replace("续费风险摘要：","").trim();
-  }
-  return "等待生成";
-}
-
-
 function generateGrowthPosterReport(){
   const studentName=document.getElementById("growthStudentSelect").value;
   const startMonth=document.getElementById("growthStartMonthInput").value;
@@ -9579,8 +9792,7 @@ function generateGrowthPosterReport(){
   const future=generateFutureDirection(records,scores,talent);
   const teachingAdvice=generateTeachingAdvice(scores);
   const monthlyBlocks=buildMonthlySummary(studentName,months);
-  const riskSummary=buildRiskSummaryForPoster(records);
-  const posterSummaryWithRisk=`${getPosterSummaryText(monthlyBlocks)}\n\n续费风险摘要：${riskSummary}`;
+  const posterSummary=getPosterSummaryText(monthlyBlocks);
   const courseContents=[...new Set(records.map(r=>r.courseContent).map(v=>String(v||"").trim()).filter(Boolean))];
 
   drawRadarChart("growthRadarChart",scores,false);
@@ -9615,11 +9827,7 @@ function generateGrowthPosterReport(){
   document.getElementById("posterStudentTitle").innerText=`${studentName}成长报告`;
   document.getElementById("posterMonthText").innerText=rangeText;
   document.getElementById("posterTalentText").innerText=talent.type.map(t=>"✔ "+t).join("\\n");
-  document.getElementById("posterMonthlySummaryText").innerText=posterSummaryWithRisk;
-  const riskSummaryBox=document.getElementById("posterRiskSummaryText");
-  if(riskSummaryBox){
-    riskSummaryBox.innerText=riskSummary;
-  }
+  document.getElementById("posterMonthlySummaryText").innerText=posterSummary;
   const courseContentBox=document.getElementById("posterCourseContentText");
   if(courseContentBox){
     courseContentBox.innerText=courseContents.length
@@ -9632,8 +9840,7 @@ function generateGrowthPosterReport(){
     title:`${studentName} · 成长报告`,
     monthText:rangeText,
     talent:talent.text,
-    summary:posterSummaryWithRisk,
-    riskSummary,
+    summary:posterSummary,
     courseContent:courseContents.length ? courseContents.map((c,i)=>`${i+1}. ${c}`).join("\n") : "暂无课程内容记录",
     future,
     qrTitle:document.getElementById("posterQrTitleEditor")?.value||"扫码了解课程",
@@ -9664,25 +9871,22 @@ ${monthlyBlocks.map(b=>b.text).join("\\n\\n--------------------\\n\\n")}
 四、AI 人才方向分析
 ${talent.text}
 
-五、续费风险摘要
-${riskSummary}
-
-六、连续成长记录
+五、连续成长记录
 ${continuous}
 
-七、孩子未来方向
+六、孩子未来方向
 ${future}
 
-八、AI 教学建议
+七、AI 教学建议
 ${teachingAdvice}
 
-九、课程内容 / 知识点
+八、课程内容 / 知识点
 ${courseContents.length ? courseContents.map((c,i)=>`${i+1}. ${c}`).join("\\n") : "暂无课程内容记录"}
 
-十、成长趋势
+九、成长趋势
 ${monthlySeries.map(item=>`${item.month}：综合成长指数 ${item.average}`).join("\\n")}
 
-十一、总结
+十、总结
 本报告根据所选月份范围内的历史课评自动生成，可用于家长沟通、阶段总结、续费沟通和学习规划参考。
 `;
 
@@ -9794,10 +9998,6 @@ function setPosterEditorValues(data){
   document.getElementById("posterMonthEditor").value=data.monthText||"";
   document.getElementById("posterTalentEditor").value=data.talent||"";
   document.getElementById("posterSummaryEditor").value=data.summary||"";
-  const riskSummaryBox=document.getElementById("posterRiskSummaryText");
-  if(riskSummaryBox){
-    riskSummaryBox.innerText=data.riskSummary||extractRiskSummaryFromText(data.summary||"");
-  }
   const courseContentBox=document.getElementById("posterCourseContentText");
   if(courseContentBox){
     courseContentBox.innerText=data.courseContent||"暂无课程内容记录";
@@ -9825,10 +10025,6 @@ function syncPosterEditors(){
   document.getElementById("posterMonthText").innerText=monthText||"阶段成长记录";
   document.getElementById("posterTalentText").innerText=talent||"等待生成";
   document.getElementById("posterMonthlySummaryText").innerText=summary||"等待生成";
-  const riskSummaryBox=document.getElementById("posterRiskSummaryText");
-  if(riskSummaryBox){
-    riskSummaryBox.innerText=extractRiskSummaryFromText(summary||"");
-  }
   document.getElementById("posterFutureText").innerText=future||"等待生成";
   document.getElementById("posterQrTitleText").innerText=qrTitle||"扫码了解课程";
   document.getElementById("posterQrSubText").innerText=qrSub||"";
@@ -9894,6 +10090,7 @@ V4.0 Supabase 邮箱注册登录 + 老师资料 + 云端数据
 
 const SUPABASE_URL = "https://tdfwfcnxoeesmmkhkjci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_YYuW07Bv64VYssby2bR86g_QQGvsB18";
+const ADMIN_CREATE_TEACHER_FUNCTION = "admin-create-teacher";
 
 
 
@@ -10097,8 +10294,8 @@ async function upsertProfileWithFallback(payload){
 }
 
 async function fetchProfileWithFallback(userId){
-  const fullColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,teaching_track,subjects";
-  const baseColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role";
+  const fullColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,teaching_track,subjects,organization_name";
+  const baseColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,organization_name";
 
   let {data,error}=await supabaseClient
     .from("profiles")
@@ -10175,6 +10372,7 @@ async function saveTeacherProfile(){
       gender,
       teaching_track:teachingTrack,
       subjects,
+      organization_name:cleanText(currentProfile?.organization_name||""),
       avatar_url:avatarUrl,
       last_login_at:new Date().toISOString()
     });
@@ -10232,8 +10430,16 @@ async function afterLogin(){
 
   const isAdmin=profile.role==="admin";
   document.querySelectorAll(".admin-only").forEach(el=>{
-    el.style.display=isAdmin ? "inline-flex" : "none";
+    if(!isAdmin){
+      el.style.display="none";
+      return;
+    }
+    el.style.display=el.classList.contains("admin-block") ? "block" : "inline-flex";
   });
+
+  if(isAdmin){
+    prepareAdminCreateTeacherForm();
+  }
 
   saveAppData();
 }
@@ -10287,6 +10493,7 @@ async function saveCloudAppData(){
       .from("teacher_app_data")
       .upsert({
         user_id:currentUser.id,
+        organization_name:getRegisteredOrganizationName(),
         data:appData,
         updated_at:new Date().toISOString()
       });
@@ -10387,8 +10594,13 @@ async function renderAdminDashboard(){
     return;
   }
 
+  const adminOrg=getRegisteredOrganizationName();
+  const scopedProfiles=(profiles||[]).filter(p=>!adminOrg||cleanText(p.organization_name)===adminOrg);
+  const scopedProfileIds=new Set(scopedProfiles.map(p=>p.id));
+
   const dataMap={};
   (dataRows||[]).forEach(row=>{
+    if(!scopedProfileIds.has(row.user_id))return;
     dataMap[row.user_id]=row.data||{};
   });
 
@@ -10399,7 +10611,12 @@ async function renderAdminDashboard(){
   const tbody=document.getElementById("adminUsersTable");
   tbody.innerHTML="";
 
-  (profiles||[]).forEach(p=>{
+  const orgInput=document.getElementById("adminTeacherOrganization");
+  if(orgInput){
+    orgInput.value=adminOrg;
+  }
+
+  scopedProfiles.forEach(p=>{
     const d=dataMap[p.id]||{};
     const classes=d.classes||[];
     const students=d.students||[];
@@ -10417,6 +10634,7 @@ async function renderAdminDashboard(){
       <td>${p.gender||""}</td>
       <td>${p.teaching_track||""}</td>
       <td>${Array.isArray(p.subjects)?p.subjects.join("、"):""}</td>
+      <td>${p.organization_name||""}</td>
       <td>${p.role||"teacher"}</td>
       <td>${p.created_at?new Date(p.created_at).toLocaleString():""}</td>
       <td>${p.last_login_at?new Date(p.last_login_at).toLocaleString():""}</td>
@@ -10427,7 +10645,7 @@ async function renderAdminDashboard(){
     tbody.appendChild(tr);
   });
 
-  document.getElementById("adminUserCount").innerText=(profiles||[]).length;
+  document.getElementById("adminUserCount").innerText=scopedProfiles.length;
   document.getElementById("adminClassCount").innerText=totalClasses;
   document.getElementById("adminStudentCount").innerText=totalStudents;
   document.getElementById("adminHistoryCount").innerText=totalHistory;
