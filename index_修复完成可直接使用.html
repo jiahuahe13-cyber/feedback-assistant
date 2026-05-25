@@ -10198,8 +10198,16 @@ async function registerWithEmail(){
   }
 
   if(data.user){
-    currentUser=data.user;
-    showAuthMessage("注册成功。请继续填写老师资料；如果你的 Supabase 开启了邮箱验证，请先到邮箱确认后再登录。","success");
+    const needEmailConfirm=!data.session;
+    currentUser=needEmailConfirm ? null : data.user;
+
+    if(needEmailConfirm){
+      showAuthMessage("注册成功，已发送邮箱验证邮件。请先到邮箱完成验证，再返回这里登录并填写老师资料。","success");
+      switchAuthTab("login");
+      return;
+    }
+
+    showAuthMessage("注册成功，请继续填写老师资料。","success");
     showProfileForm();
   }
 }
@@ -10336,6 +10344,15 @@ async function saveTeacherProfile(){
   const gender=document.getElementById("profileGender").value;
   const teachingTrack=document.getElementById("profileTeachingTrack").value;
   const subjects=getSelectedProfileSubjects();
+
+  const {data:sessionWrap}=await supabaseClient.auth.getSession();
+  const hasSession=Boolean(sessionWrap?.session?.access_token);
+
+  if(!hasSession){
+    showAuthMessage("当前登录会话无效，请先登录后再保存老师资料。","error");
+    switchAuthTab("login");
+    return;
+  }
 
   if(!currentUser){
     const {data}=await supabaseClient.auth.getUser();
