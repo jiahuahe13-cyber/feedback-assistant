@@ -9754,6 +9754,68 @@ async function uploadTeacherAvatar(){
   return data.publicUrl;
 }
 
+function getMissingProfileColumnFromError(error){
+  const msg=String(error?.message||"");
+  const match=msg.match(/Could not find the '([^']+)' column of 'profiles'/i);
+  return match ? match[1] : "";
+}
+
+async function upsertProfileWithFallback(payload){
+  let cleanPayload={...payload};
+
+  for(let i=0;i<3;i++){
+    const {error}=await supabaseClient.from("profiles").upsert(cleanPayload);
+    if(!error){
+      return {ok:true,removedColumns:[]};
+    }
+
+    const missingCol=getMissingProfileColumnFromError(error);
+    if(!missingCol||!(missingCol in cleanPayload)){
+      throw error;
+    }
+
+    delete cleanPayload[missingCol];
+  }
+
+  throw new Error("profiles 字段校验失败，请稍后重试。");
+}
+
+async function fetchProfileWithFallback(userId){
+  const fullColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role,teaching_track,subjects";
+  const baseColumns="id,email,teacher_name,gender,avatar_url,last_login_at,role";
+
+  let {data,error}=await supabaseClient
+    .from("profiles")
+    .select(fullColumns)
+    .eq("id",userId)
+    .single();
+
+  if(!error){
+    return data;
+  }
+
+  const missingCol=getMissingProfileColumnFromError(error);
+  if(!missingCol){
+    throw error;
+  }
+
+  const fallback=await supabaseClient
+    .from("profiles")
+    .select(baseColumns)
+    .eq("id",userId)
+    .single();
+
+  if(fallback.error){
+    throw fallback.error;
+  }
+
+  return {
+    ...fallback.data,
+    teaching_track:"",
+    subjects:[]
+  };
+}
+
 async function saveTeacherProfile(){
   if(!supabaseClient && !initSupabaseClient())return;
 
@@ -9790,20 +9852,16 @@ async function saveTeacherProfile(){
   try{
     const avatarUrl=await uploadTeacherAvatar();
 
-    const {error}=await supabaseClient
-      .from("profiles")
-      .upsert({
-        id:currentUser.id,
-        email:currentUser.email,
-        teacher_name:teacherName,
-        gender,
-        teaching_track:teachingTrack,
-        subjects,
-        avatar_url:avatarUrl,
-        last_login_at:new Date().toISOString()
-      });
-
-    if(error)throw error;
+    await upsertProfileWithFallback({
+      id:currentUser.id,
+      email:currentUser.email,
+      teacher_name:teacherName,
+      gender,
+      teaching_track:teachingTrack,
+      subjects,
+      avatar_url:avatarUrl,
+      last_login_at:new Date().toISOString()
+    });
 
     showAuthMessage("老师资料保存成功。","success");
     await afterLogin();
@@ -9821,11 +9879,13 @@ async function afterLogin(){
 
   if(!currentUser)return;
 
-  const {data:profile,error}=await supabaseClient
-    .from("profiles")
-    .select("*")
-    .eq("id",currentUser.id)
-    .single();
+  let profile=null;
+  let error=null;
+  try{
+    profile=await fetchProfileWithFallback(currentUser.id);
+  }catch(err){
+    error=err;
+  }
 
   if(error||!profile){
     populateTeacherProfileForm({teacher_name:currentUser.email?.split("@")[0]||""});
