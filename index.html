@@ -10345,15 +10345,6 @@ async function saveTeacherProfile(){
   const teachingTrack=document.getElementById("profileTeachingTrack").value;
   const subjects=getSelectedProfileSubjects();
 
-  const {data:sessionWrap}=await supabaseClient.auth.getSession();
-  const hasSession=Boolean(sessionWrap?.session?.access_token);
-
-  if(!hasSession){
-    showAuthMessage("当前登录会话无效，请先登录后再保存老师资料。","error");
-    switchAuthTab("login");
-    return;
-  }
-
   if(!currentUser){
     const {data}=await supabaseClient.auth.getUser();
     currentUser=data.user;
@@ -10395,7 +10386,16 @@ async function saveTeacherProfile(){
     });
 
     showAuthMessage("老师资料保存成功。","success");
-    await afterLogin();
+    try{
+      await afterLogin();
+    }catch(error){
+      console.error("afterLogin failed after profile save:",error);
+      document.getElementById("authOverlay").style.display="none";
+      document.getElementById("authBar").style.display="flex";
+      applyCurrentTeacherToForms();
+      updateHeroGreeting();
+      setCloudSyncStatus("failed","部分云端加载失败，请稍后重试");
+    }
 
   }catch(error){
     showAuthMessage(error.message,"error");
@@ -10473,23 +10473,34 @@ function applyCurrentTeacherToForms(){
 async function loadCloudAppData(){
   if(!supabaseClient||!currentUser)return;
 
-  const {data,error}=await supabaseClient
-    .from("teacher_app_data")
-    .select("data")
-    .eq("user_id",currentUser.id)
-    .single();
+  try{
+    const {data}=await supabaseClient
+      .from("teacher_app_data")
+      .select("data")
+      .eq("user_id",currentUser.id)
+      .single();
 
-  if(data?.data){
-    appData=ensureCustomTagStore(data.data);
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+    if(data?.data){
+      appData=ensureCustomTagStore(data.data);
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+      renderClassSelects();
+      renderHistory();
+      renderAIStudentOptions?.();
+      renderGrowthPosterOptions?.();
+      syncRuleRiskModeUI?.();
+      setCloudSyncStatus("synced");
+    }else{
+      await saveCloudAppData();
+    }
+  }catch(error){
+    console.error("loadCloudAppData failed:",error);
+    setCloudSyncStatus("failed","云端读取失败，已使用本地数据");
+    appData=ensureCustomTagStore(loadAppData());
     renderClassSelects();
     renderHistory();
     renderAIStudentOptions?.();
     renderGrowthPosterOptions?.();
     syncRuleRiskModeUI?.();
-    setCloudSyncStatus("synced");
-  }else{
-    await saveCloudAppData();
   }
 }
 
