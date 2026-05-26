@@ -3115,15 +3115,15 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="book-open"></i><span>课程类型</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="book-open"></i>
-      <select id="courseType" onchange="handleCourseTypeChange()"></select>
+      <select id="courseType" onchange="handleCourseTypeChange()" oninput="handleCourseTypeChange()"></select>
     </div>
   </div>
 </div>
 
 <div class="row non-k12-level-row" id="singleLevelRow" style="display:none;">
   <div>
-    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层</span></label>
-    <div class="tags" id="nonK12LevelTags">
+    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层（可多选）</span></label>
+    <div class="tags multi" id="nonK12LevelTags">
       <button type="button" class="active" onclick="toggleNonK12LevelTag(this)">启蒙</button>
       <button type="button" onclick="toggleNonK12LevelTag(this)">进阶</button>
       <button type="button" onclick="toggleNonK12LevelTag(this)">考级</button>
@@ -3229,12 +3229,12 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="book-open"></i><span>课程类型</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="book-open"></i>
-      <select id="groupCourse" onchange="handleGroupCourseChange()"></select>
+      <select id="groupCourse" onchange="handleGroupCourseChange()" oninput="handleGroupCourseChange()"></select>
     </div>
   </div>
   <div>
-    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层</span></label>
-    <div class="tags" id="groupLevelTags">
+    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层（可多选）</span></label>
+    <div class="tags multi" id="groupLevelTags">
       <button type="button" class="active" onclick="toggleGroupLevelTag(this)">启蒙</button>
       <button type="button" onclick="toggleGroupLevelTag(this)">进阶</button>
       <button type="button" onclick="toggleGroupLevelTag(this)">考级</button>
@@ -5089,7 +5089,13 @@ function refreshTeacherCourseOptions(){
   refreshCourseSelect("courseType");
   refreshCourseSelect("newClassCourse");
   refreshCourseSelect("groupCourse");
+  refreshSingleCourseKnowledgeArea();
+  renderGroupStudentPanels();
+}
+
+function refreshSingleCourseKnowledgeArea(){
   renderBasicPerformanceSection();
+  renderProfessionalTags();
 }
 
 function getTeacherProfileTitle(profile){
@@ -5575,14 +5581,12 @@ function renderBasicPerformanceSection(){
 }
 
 function handleCourseTypeChange(){
-  renderBasicPerformanceSection();
-  renderProfessionalTags();
+  refreshSingleCourseKnowledgeArea();
   renderGroupStudentPanels();
 }
 
 function handleNonK12LevelChange(){
-  renderBasicPerformanceSection();
-  renderProfessionalTags();
+  refreshSingleCourseKnowledgeArea();
 }
 
 function handleGroupLevelChange(){
@@ -6361,7 +6365,7 @@ function onClassSelected(){
 
   if(c){
     refreshCourseSelect("courseType",c.courseType||document.getElementById("courseType").value,c.courseType||"");
-    renderBasicPerformanceSection();
+    refreshSingleCourseKnowledgeArea();
 
     c.studentIds.forEach(id=>{
       const s=appData.students.find(x=>x.id===id);
@@ -6373,7 +6377,6 @@ function onClassSelected(){
       }
     });
 
-    renderProfessionalTags();
   }
 }
 
@@ -6386,8 +6389,7 @@ function onStudentSelected(){
 
     if(s.courseType){
       refreshCourseSelect("courseType",s.courseType,s.courseType);
-      renderBasicPerformanceSection();
-      renderProfessionalTags();
+      refreshSingleCourseKnowledgeArea();
     }
   }
 }

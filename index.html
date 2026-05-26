@@ -3115,21 +3115,18 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="book-open"></i><span>课程类型</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="book-open"></i>
-      <select id="courseType" onchange="handleCourseTypeChange()"></select>
+      <select id="courseType" onchange="handleCourseTypeChange()" oninput="handleCourseTypeChange()"></select>
     </div>
   </div>
 </div>
 
 <div class="row non-k12-level-row" id="singleLevelRow" style="display:none;">
   <div>
-    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层</span></label>
-    <div class="input-icon-wrap">
-      <i data-lucide="layers"></i>
-      <select id="nonK12Level" onchange="handleNonK12LevelChange()">
-        <option value="启蒙">启蒙</option>
-        <option value="进阶">进阶</option>
-        <option value="考级">考级</option>
-      </select>
+    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层（可多选）</span></label>
+    <div class="tags multi" id="nonK12LevelTags">
+      <button type="button" class="active" onclick="toggleNonK12LevelTag(this)">启蒙</button>
+      <button type="button" onclick="toggleNonK12LevelTag(this)">进阶</button>
+      <button type="button" onclick="toggleNonK12LevelTag(this)">考级</button>
     </div>
   </div>
 </div>
@@ -3232,18 +3229,15 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
     <label class="icon-label"><i data-lucide="book-open"></i><span>课程类型</span></label>
     <div class="input-icon-wrap">
       <i data-lucide="book-open"></i>
-      <select id="groupCourse" onchange="handleGroupCourseChange()"></select>
+      <select id="groupCourse" onchange="handleGroupCourseChange()" oninput="handleGroupCourseChange()"></select>
     </div>
   </div>
   <div>
-    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层</span></label>
-    <div class="input-icon-wrap">
-      <i data-lucide="layers"></i>
-      <select id="groupLevel" onchange="handleGroupLevelChange()">
-        <option value="启蒙">启蒙</option>
-        <option value="进阶">进阶</option>
-        <option value="考级">考级</option>
-      </select>
+    <label class="icon-label"><i data-lucide="layers"></i><span>学段分层（可多选）</span></label>
+    <div class="tags multi" id="groupLevelTags">
+      <button type="button" class="active" onclick="toggleGroupLevelTag(this)">启蒙</button>
+      <button type="button" onclick="toggleGroupLevelTag(this)">进阶</button>
+      <button type="button" onclick="toggleGroupLevelTag(this)">考级</button>
     </div>
   </div>
   <div>
@@ -4469,6 +4463,24 @@ const defaultInterestProfessionalBanks={
   }
 };
 
+const defaultProgrammingProfessionalBank={
+  good:[
+    "课堂参与积极，能跟随步骤完成核心任务。",
+    "逻辑思路较清晰，能够按顺序推进作品搭建与调试。",
+    "愿意尝试和表达，课堂中有主动思考表现。"
+  ],
+  weak:[
+    "步骤观察还需更细致",
+    "调试排错耐心需加强",
+    "表达复盘完整度需提升"
+  ],
+  improve:{
+    "步骤观察还需更细致":["下节课加强步骤图观察和关键点标注训练。"],
+    "调试排错耐心需加强":["增加分段调试训练，建立“先定位再修正”的习惯。"],
+    "表达复盘完整度需提升":["课末固定进行“做了什么-为什么-怎么改”的表达复盘。"]
+  }
+};
+
 const interestIssueRules=[
   {
     type:"运动协调型问题",
@@ -4867,19 +4879,63 @@ function isNonK12Track(track){
   return !isK12Track(track);
 }
 
+function getSelectedLevelValues(containerId){
+  const values=Array.from(document.querySelectorAll(`#${containerId} button.active`))
+    .map(btn=>cleanText(btn.innerText))
+    .filter(item=>nonK12LevelOptions.includes(item));
+  return [...new Set(values)];
+}
+
+function getCurrentNonK12Levels(){
+  const selected=getSelectedLevelValues("nonK12LevelTags");
+  return selected.length ? selected : ["启蒙"];
+}
+
+function getCurrentGroupLevels(){
+  const selected=getSelectedLevelValues("groupLevelTags");
+  return selected.length ? selected : getCurrentNonK12Levels();
+}
+
 function getCurrentNonK12Level(){
-  const value=cleanText(document.getElementById("nonK12Level")?.value||"启蒙");
-  return nonK12LevelOptions.includes(value) ? value : "启蒙";
+  return getCurrentNonK12Levels()[0]||"启蒙";
 }
 
 function getCurrentGroupLevel(){
-  const value=cleanText(document.getElementById("groupLevel")?.value||getCurrentNonK12Level());
-  return nonK12LevelOptions.includes(value) ? value : "启蒙";
+  return getCurrentGroupLevels()[0]||getCurrentNonK12Level();
+}
+
+function getCurrentNonK12LevelText(){
+  return getCurrentNonK12Levels().join("、");
+}
+
+function getCurrentGroupLevelText(){
+  return getCurrentGroupLevels().join("、");
+}
+
+function toggleNonK12LevelTag(btn){
+  if(!btn)return;
+  btn.classList.toggle("active");
+  if(!getSelectedLevelValues("nonK12LevelTags").length){
+    btn.classList.add("active");
+  }
+  handleNonK12LevelChange();
+}
+
+function toggleGroupLevelTag(btn){
+  if(!btn)return;
+  btn.classList.toggle("active");
+  if(!getSelectedLevelValues("groupLevelTags").length){
+    btn.classList.add("active");
+  }
+  handleGroupLevelChange();
 }
 
 function getLevelTagOptions(track,key,level){
-  const bucket=nonK12LevelTagMap[track]?.[level]||{};
-  return bucket[key]||[];
+  const levels=Array.isArray(level) ? level : String(level||"").split("、").map(cleanText).filter(Boolean);
+  return [...new Set(levels.flatMap(item=>{
+    const bucket=nonK12LevelTagMap[track]?.[item]||{};
+    return bucket[key]||[];
+  }))];
 }
 
 function getTeachingTrackByCourse(courseType="",explicitTrack=""){
@@ -4927,7 +4983,10 @@ function getInterestBasicScheme(courseType=""){
 
 function getBasicScheme(track="",courseType="",level=""){
   const resolvedTrack=getTeachingTrackByCourse(courseType,track||getRegisteredTeachingTrack());
-  const resolvedLevel=nonK12LevelOptions.includes(level)?level:getCurrentNonK12Level();
+  const resolvedLevels=Array.isArray(level)
+    ? level.filter(item=>nonK12LevelOptions.includes(item))
+    : String(level||"").split("、").map(cleanText).filter(item=>nonK12LevelOptions.includes(item));
+  const activeLevels=resolvedLevels.length ? resolvedLevels : getCurrentNonK12Levels();
 
   if(isK12Track(resolvedTrack)){
     const subject=getK12SubjectFromCourse(courseType);
@@ -4946,7 +5005,7 @@ function getBasicScheme(track="",courseType="",level=""){
 
   const appendLevelTags=(scheme)=>scheme.map(item=>({
     ...item,
-    options:[...new Set([...(item.options||[]), ...getLevelTagOptions(resolvedTrack,item.key,resolvedLevel)])]
+    options:[...new Set([...(item.options||[]), ...getLevelTagOptions(resolvedTrack,item.key,activeLevels)])]
   }));
 
   if(isInterestTrack(resolvedTrack)){
@@ -4964,14 +5023,14 @@ function getSubjectFocusOptions(courseType){
 function getVisibleBasicScheme(track="",courseType=""){
   const level=isK12Track(getTeachingTrackByCourse(courseType,track||getRegisteredTeachingTrack()))
     ? ""
-    : getCurrentNonK12Level();
+    : getCurrentNonK12Levels();
   return getBasicScheme(track,courseType,level).filter(item=>!item.hidden);
 }
 
 function getBasicLabelByKey(key,track="",courseType=""){
   const level=isK12Track(getTeachingTrackByCourse(courseType,track||getRegisteredTeachingTrack()))
     ? ""
-    : getCurrentNonK12Level();
+    : getCurrentNonK12Levels();
   const found=getBasicScheme(track,courseType,level).find(item=>item.key===key);
   return found?.label||basicTagConfigs.find(item=>item.key===key)?.label||key;
 }
@@ -5030,7 +5089,13 @@ function refreshTeacherCourseOptions(){
   refreshCourseSelect("courseType");
   refreshCourseSelect("newClassCourse");
   refreshCourseSelect("groupCourse");
+  refreshSingleCourseKnowledgeArea();
+  renderGroupStudentPanels();
+}
+
+function refreshSingleCourseKnowledgeArea(){
   renderBasicPerformanceSection();
+  renderProfessionalTags();
 }
 
 function getTeacherProfileTitle(profile){
@@ -5495,7 +5560,7 @@ function renderBasicPerformanceSection(){
   const courseType=document.getElementById("courseType")?.value||getDefaultCourseOption();
   const selectedMap=getCurrentBasicSelectedMap(document);
   const track=getCurrentTrackForActiveCourse(courseType);
-  const level=getCurrentNonK12Level();
+  const level=getCurrentNonK12Levels();
   const scheme=getVisibleBasicScheme(track,courseType);
   const levelRow=document.getElementById("singleLevelRow");
 
@@ -5516,14 +5581,12 @@ function renderBasicPerformanceSection(){
 }
 
 function handleCourseTypeChange(){
-  renderBasicPerformanceSection();
-  renderProfessionalTags();
+  refreshSingleCourseKnowledgeArea();
   renderGroupStudentPanels();
 }
 
 function handleNonK12LevelChange(){
-  renderBasicPerformanceSection();
-  renderProfessionalTags();
+  refreshSingleCourseKnowledgeArea();
 }
 
 function handleGroupLevelChange(){
@@ -5912,21 +5975,37 @@ function getDefaultProfessionalBank(courseType=""){
     return defaultInterestProfessionalBanks[course];
   }
 
-  return {good:[],weak:[],improve:{}};
+  return defaultProgrammingProfessionalBank;
 }
 
 function getDefaultImproveBank(courseType=""){
   return getDefaultProfessionalBank(courseType).improve||{};
 }
 
+function hasProfessionalBankContent(bank){
+  return !!(bank&&((bank.good||[]).length||(bank.weak||[]).length));
+}
+
+function getCourseImproveBank(courseType=""){
+  const course=cleanText(courseType);
+  const bank=improveBanks[course]||{};
+
+  if(Object.keys(bank).length){
+    return bank;
+  }
+
+  return getDefaultImproveBank(course);
+}
+
 function getCourseBank(courseType){
-  const course=courseType||document.getElementById("courseType").value;
+  const course=cleanText(courseType||document.getElementById("courseType").value);
   const bank=professionalBanks[course]||{good:[],weak:[]};
   const defaultBank=getDefaultProfessionalBank(course);
+  const baseBank=hasProfessionalBankContent(bank)?bank:defaultBank;
 
   return {
-    good:[...new Set([...(defaultBank.good||[]), ...(bank.good||[]), ...getCustomProfessionalTags(course,"good")])],
-    weak:[...new Set([...(defaultBank.weak||[]), ...(bank.weak||[]), ...getCustomProfessionalTags(course,"weak")])]
+    good:[...new Set([...(baseBank.good||[]), ...getCustomProfessionalTags(course,"good")])],
+    weak:[...new Set([...(baseBank.weak||[]), ...getCustomProfessionalTags(course,"weak")])]
   };
 }
 
@@ -5994,10 +6073,7 @@ function getMatchedImproveSuggestionsByWeak(courseType,selectedWeak){
     return [...new Set(customImprove)];
   }
 
-  const courseImproveBank={
-    ...getDefaultImproveBank(courseType),
-    ...(improveBanks[courseType]||{})
-  };
+  const courseImproveBank=getCourseImproveBank(courseType);
   let suggestions=[];
 
   selectedWeak.forEach(weakText=>{
@@ -6077,27 +6153,54 @@ function registerProfessionalTemplate(course,type,template,improve=""){
   }
 }
 
-function getCourseFromBankRow(row){
-  const direct=cleanText(row["课程类型"]);
+function registerProfessionalRowForCourse(row,course){
+  const template=cleanText(row["评价模板"]);
+
+  if(template){
+    registerProfessionalTemplate(course,row["评价类型"],template,row["需要提升的点"]||row["提升建议"]||row["下节课建议"]||row["教学方案"]);
+  }
+
+  const good=cleanText(row["孩子优点"]||row["闪光点"]||row["优势表现"]);
+  const weak=cleanText(row["孩子目前薄弱点"]||row["薄弱点"]||row["需要加强方面"]||row["待提升表现"]);
+  const improve=cleanText(row["提升建议"]||row["需要提升的点"]||row["下节课建议"]||row["教学方案"]);
+
+  if(good){
+    registerProfessionalTemplate(course,"孩子优点",good,improve);
+  }
+
+  if(weak){
+    registerProfessionalTemplate(course,"需要加强方面",weak,improve);
+  }
+}
+
+function getCourseAliasesFromBankRow(row){
+  const direct=cleanText(row["课程类型"]||row["课程"]||row["课程名称"]||row["项目"]);
+  const interest=cleanText(row["兴趣班"]);
+  const stage=cleanText(row["学段"]||row["年级段"]);
+  const subject=cleanText(row["科目"]||row["学科"]);
+  const aliases=[];
 
   if(direct){
-    return direct;
+    aliases.push(direct);
   }
-
-  const interest=cleanText(row["兴趣班"]);
 
   if(interest){
-    return interest;
+    aliases.push(interest);
   }
-
-  const stage=cleanText(row["学段"]);
-  const subject=cleanText(row["科目"]);
 
   if(stage&&subject){
-    return `${stage}${subject}`;
+    aliases.push(`${stage}${subject}`);
   }
 
-  return subject;
+  if(subject){
+    aliases.push(subject);
+  }
+
+  return [...new Set(aliases)];
+}
+
+function getCourseFromBankRow(row){
+  return getCourseAliasesFromBankRow(row)[0]||"";
 }
 
 function registerExcelBasicTag(course,category,tag){
@@ -6158,51 +6261,50 @@ async function loadExcelBank(){
 
     const workbookJson=await response.json();
 
-    const mainRows=Array.isArray(workbookJson["课程专业评价题库"]) ? workbookJson["课程专业评价题库"] : [];
-    const matchRows=Array.isArray(workbookJson["薄弱点-提升匹配库"]) ? workbookJson["薄弱点-提升匹配库"] : [];
-    const k12ProfessionalRows=Array.isArray(workbookJson["K12课程专业评价"]) ? workbookJson["K12课程专业评价"] : [];
-    const k12BasicRows=Array.isArray(workbookJson["K12基础表现标签"]) ? workbookJson["K12基础表现标签"] : [];
-    const interestProfessionalRows=Array.isArray(workbookJson["兴趣班专业评价"]) ? workbookJson["兴趣班专业评价"] : [];
-    const interestBasicRows=Array.isArray(workbookJson["兴趣班基础表现标签"]) ? workbookJson["兴趣班基础表现标签"] : [];
-    const aiRuleRows=Array.isArray(workbookJson["AI规则判断库"]) ? workbookJson["AI规则判断库"] : [];
+    const getSheetRows=(...names)=>{
+      for(const name of names){
+        if(Array.isArray(workbookJson[name])){
+          return workbookJson[name];
+        }
+      }
+      return [];
+    };
 
-    mainRows.forEach(row=>{
-      const course=cleanText(row["课程类型"]);
-      const type=cleanText(row["评价类型"]);
-      const template=cleanText(row["评价模板"]);
-      const improve=cleanText(row["需要提升的点"]);
+    const mainRows=getSheetRows("课程专业评价题库","课程专业评价预设题库");
+    const matchRows=getSheetRows("薄弱点-提升匹配库","薄弱点匹配提升建议版");
+    const k12ProfessionalRows=getSheetRows("K12课程专业评价");
+    const k12BasicRows=getSheetRows("K12基础表现标签");
+    const interestProfessionalRows=getSheetRows("兴趣班专业评价");
+    const interestBasicRows=getSheetRows("兴趣班基础表现标签");
+    const aiRuleRows=getSheetRows("AI规则判断库");
 
-      registerProfessionalTemplate(course,type,template,improve);
-    });
-
-    [...k12ProfessionalRows,...interestProfessionalRows].forEach(row=>{
-      registerProfessionalTemplate(
-        getCourseFromBankRow(row),
-        row["评价类型"],
-        row["评价模板"],
-        row["需要提升的点"]||row["下节课建议"]||row["教学方案"]
-      );
+    [...mainRows,...k12ProfessionalRows,...interestProfessionalRows].forEach(row=>{
+      getCourseAliasesFromBankRow(row).forEach(course=>{
+        registerProfessionalRowForCourse(row,course);
+      });
     });
 
     k12BasicRows.forEach(row=>{
-      const course=getCourseFromBankRow(row);
-      const subject=cleanText(row["科目"]);
-      registerExcelBasicTag(course, row["分类"], row["标签"]);
-      registerExcelBasicTag(subject, row["分类"], row["标签"]);
+      getCourseAliasesFromBankRow(row).forEach(course=>{
+        registerExcelBasicTag(course, row["分类"], row["标签"]);
+      });
     });
 
     interestBasicRows.forEach(row=>{
-      registerExcelBasicTag(getCourseFromBankRow(row), row["分类"], row["标签"]);
+      getCourseAliasesFromBankRow(row).forEach(course=>{
+        registerExcelBasicTag(course, row["分类"], row["标签"]);
+      });
     });
 
     aiRuleRows.forEach(registerAIRuleFromRow);
 
     matchRows.forEach(row=>{
-      const course=cleanText(row["课程类型"]);
       const weak=cleanText(row["薄弱点话术"]);
       const improve=cleanText(row["需要提升的点"]);
 
-      addToImproveBank(course,weak,improve);
+      getCourseAliasesFromBankRow(row).forEach(course=>{
+        addToImproveBank(course,weak,improve);
+      });
     });
 
     status.innerText=`题库读取成功：${QUESTION_BANK_FILE} 已启用专业评价、基础标签和 AI 规则判断库。`;
@@ -6263,7 +6365,7 @@ function onClassSelected(){
 
   if(c){
     refreshCourseSelect("courseType",c.courseType||document.getElementById("courseType").value,c.courseType||"");
-    renderBasicPerformanceSection();
+    refreshSingleCourseKnowledgeArea();
 
     c.studentIds.forEach(id=>{
       const s=appData.students.find(x=>x.id===id);
@@ -6275,7 +6377,6 @@ function onClassSelected(){
       }
     });
 
-    renderProfessionalTags();
   }
 }
 
@@ -6288,8 +6389,7 @@ function onStudentSelected(){
 
     if(s.courseType){
       refreshCourseSelect("courseType",s.courseType,s.courseType);
-      renderBasicPerformanceSection();
-      renderProfessionalTags();
+      refreshSingleCourseKnowledgeArea();
     }
   }
 }
@@ -6562,7 +6662,7 @@ function captureGroupPanelDrafts(){
   });
 }
 
-function buildGroupBasicSectionHtml(courseType,level=""){
+function buildGroupBasicSectionHtml(courseType,level=[]){
   const track=getTeachingTrackByCourse(courseType,getRegisteredTeachingTrack());
   const scheme=getBasicScheme(track,courseType,isK12Track(track)?"":level).filter(item=>!item.hidden);
 
@@ -6583,9 +6683,9 @@ function renderGroupStudentPanels(){
   const students=getGroupSelectedStudents();
   const courseType=document.getElementById("groupCourse")?.value||getDefaultCourseOption();
   const track=getCurrentTrackForActiveCourse(courseType);
-  const level=getCurrentGroupLevel();
+  const level=getCurrentGroupLevels();
   const bank=getCourseBank(courseType);
-  const groupLevelWrap=document.getElementById("groupLevel")?.closest("div");
+  const groupLevelWrap=document.getElementById("groupLevelTags")?.closest("div");
 
   if(groupLevelWrap){
     groupLevelWrap.style.display=isNonK12Track(track) ? "block" : "none";
@@ -6815,7 +6915,7 @@ function generateGroupFeedback(){
   const common={
     teacherName:document.getElementById("groupTeacher").value,
     teachingTrack:getCurrentTrackForActiveCourse(document.getElementById("groupCourse").value),
-    trainingLevel:getCurrentGroupLevel(),
+    trainingLevel:getCurrentGroupLevelText(),
     className:cls?cls.name:"",
     classId:classId||"",
     courseType:document.getElementById("groupCourse").value,
@@ -7443,7 +7543,7 @@ function buildFeedback(){
     studentName:document.getElementById("studentName").value||"孩子",
     teacherName:document.getElementById("teacherName").value,
     teachingTrack:trackValue,
-    trainingLevel:isNonK12Track(trackValue)?getCurrentNonK12Level():"",
+    trainingLevel:isNonK12Track(trackValue)?getCurrentNonK12LevelText():"",
     courseType:courseTypeValue,
     topic:document.getElementById("topic").value||"本节课程",
     courseContent:document.getElementById("courseContent").value,
@@ -7475,7 +7575,7 @@ function collectCurrentRecord(resultText){
     studentName:document.getElementById("studentName").value||"孩子",
     teacherName:document.getElementById("teacherName").value,
     teachingTrack:trackValue,
-    trainingLevel:isNonK12Track(trackValue)?getCurrentNonK12Level():"",
+    trainingLevel:isNonK12Track(trackValue)?getCurrentNonK12LevelText():"",
     className:cls?cls.name:"",
     classId:classId||"",
     courseType:courseTypeValue,
