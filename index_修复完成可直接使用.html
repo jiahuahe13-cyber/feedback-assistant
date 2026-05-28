@@ -3956,6 +3956,27 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   <div id="adminCreateStatus" class="admin-create-status"></div>
 </div>
 
+<div id="superAdminOrgAdminCard" class="admin-create-card super-admin-only admin-block" style="display:none;">
+  <div class="admin-create-title">机构管理员开通</div>
+  <div class="tips">
+    平台总管理员专用：对方先注册账号后，在这里输入邮箱和机构名称，即可把他开通为该机构的管理员。
+  </div>
+  <div class="row">
+    <div>
+      <label>机构管理员邮箱</label>
+      <input id="orgAdminEmail" type="email" placeholder="例如：admin@example.com">
+    </div>
+    <div>
+      <label>机构名称</label>
+      <input id="orgAdminOrganization" placeholder="例如：未来猴编程">
+    </div>
+  </div>
+  <div class="actions">
+    <button class="small-btn" onclick="grantOrgAdminBySuperAdmin()">开通机构管理员</button>
+  </div>
+  <div id="orgAdminGrantStatus" class="admin-create-status"></div>
+</div>
+
 <div class="admin-grid">
   <div class="admin-data-card">
     <h3>注册老师数</h3>
@@ -3996,6 +4017,25 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
       </tr>
     </thead>
     <tbody id="adminUsersTable"></tbody>
+  </table>
+</div>
+
+<h3>全部孩子课评记录</h3>
+<div class="tips">平台总管理员可查看全部机构记录；机构管理员只查看本机构记录。</div>
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>时间</th>
+        <th>机构</th>
+        <th>老师</th>
+        <th>学生</th>
+        <th>课程</th>
+        <th>主题</th>
+        <th>课评摘要</th>
+      </tr>
+    </thead>
+    <tbody id="adminHistoryTable"></tbody>
   </table>
 </div>
 </section>
@@ -5365,12 +5405,21 @@ function prepareAdminCreateTeacherForm(){
   const orgInput=document.getElementById("adminTeacherOrganization");
   if(orgInput){
     orgInput.value=getRegisteredOrganizationName();
+    orgInput.readOnly=currentProfile?.role!=="super_admin";
   }
   renderAdminTeacherSubjects([]);
 }
 
+function canAccessAdminDashboard(profile=currentProfile){
+  return ["admin","super_admin"].includes(cleanText(profile?.role));
+}
+
+function isSuperAdmin(profile=currentProfile){
+  return cleanText(profile?.role)==="super_admin";
+}
+
 async function createTeacherByAdmin(){
-  if(!supabaseClient||!currentUser||!currentProfile||currentProfile.role!=="admin"){
+  if(!supabaseClient||!currentUser||!canAccessAdminDashboard(currentProfile)){
     alert("仅管理员可创建老师账号。");
     return;
   }
@@ -5382,7 +5431,9 @@ async function createTeacherByAdmin(){
   const gender=cleanText(document.getElementById("adminTeacherGender")?.value);
   const teaching_track=cleanText(document.getElementById("adminTeacherTrack")?.value);
   const subjects=getSelectedAdminTeacherSubjects();
-  const organization_name=getRegisteredOrganizationName();
+  const organization_name=isSuperAdmin()
+    ? cleanText(document.getElementById("adminTeacherOrganization")?.value)
+    : getRegisteredOrganizationName();
 
   if(!teacher_name||!email||!password||!teaching_track){
     if(status)status.innerText="请完整填写姓名、邮箱、初始密码、教学方向。";
@@ -5451,6 +5502,39 @@ async function createTeacherByAdmin(){
   }
 }
 
+async function grantOrgAdminBySuperAdmin(){
+  if(!supabaseClient||!currentUser||!isSuperAdmin()){
+    alert("仅平台总管理员可开通机构管理员。");
+    return;
+  }
+
+  const status=document.getElementById("orgAdminGrantStatus");
+  const email=cleanText(document.getElementById("orgAdminEmail")?.value).toLowerCase();
+  const organization_name=cleanText(document.getElementById("orgAdminOrganization")?.value);
+
+  if(!email||!organization_name){
+    if(status)status.innerText="请填写机构管理员邮箱和机构名称。";
+    return;
+  }
+
+  if(status)status.innerText="正在开通机构管理员…";
+
+  try{
+    await callAdminManageEmployee({
+      action:"grant_org_admin_by_email",
+      email,
+      organization_name
+    });
+
+    document.getElementById("orgAdminEmail").value="";
+    document.getElementById("orgAdminOrganization").value="";
+    if(status)status.innerText="开通成功：该账号现在是机构管理员。";
+    await renderAdminDashboard();
+  }catch(error){
+    if(status)status.innerText=`开通失败：${error.message}`;
+  }
+}
+
 async function callAdminManageEmployee(payload){
   const {data:sessionData}=await supabaseClient.auth.getSession();
   const accessToken=sessionData?.session?.access_token;
@@ -5477,7 +5561,7 @@ async function callAdminManageEmployee(payload){
 
 async function updateEmployeeFromAdmin(userId){
   if(!userId)return;
-  if(!currentProfile||currentProfile.role!=="admin"){
+  if(!canAccessAdminDashboard(currentProfile)){
     alert("仅管理员可操作。");
     return;
   }
@@ -10590,13 +10674,18 @@ function finalizeLoginUI(profile){
   document.getElementById("currentTeacherEmailText").innerText=profile?.email||currentUser?.email||"";
   document.getElementById("currentTeacherAvatar").src=profile?.avatar_url||"";
 
-  const isAdmin=profile?.role==="admin";
+  const isAdmin=canAccessAdminDashboard(profile);
+  const superAdmin=isSuperAdmin(profile);
   document.querySelectorAll(".admin-only").forEach(el=>{
     if(!isAdmin){
       el.style.display="none";
       return;
     }
     el.style.display=el.classList.contains("admin-block") ? "block" : "inline-flex";
+  });
+
+  document.querySelectorAll(".super-admin-only").forEach(el=>{
+    el.style.display=superAdmin ? (el.classList.contains("admin-block") ? "block" : "inline-flex") : "none";
   });
 
   if(isAdmin){
@@ -10788,7 +10877,7 @@ async function initAuthSystem(){
 }
 
 async function renderAdminDashboard(){
-  if(!currentProfile||currentProfile.role!=="admin"){
+  if(!canAccessAdminDashboard(currentProfile)){
     alert("你不是管理员，无法查看后台。");
     return;
   }
@@ -10808,7 +10897,10 @@ async function renderAdminDashboard(){
   }
 
   const adminOrg=getRegisteredOrganizationName();
-  const scopedProfiles=(profiles||[]).filter(p=>!adminOrg||cleanText(p.organization_name)===adminOrg);
+  const superAdmin=isSuperAdmin();
+  const scopedProfiles=superAdmin
+    ? (profiles||[])
+    : (profiles||[]).filter(p=>!adminOrg||cleanText(p.organization_name)===adminOrg);
   const scopedProfileIds=new Set(scopedProfiles.map(p=>p.id));
 
   const dataMap={};
@@ -10823,10 +10915,15 @@ async function renderAdminDashboard(){
 
   const tbody=document.getElementById("adminUsersTable");
   tbody.innerHTML="";
+  const historyTbody=document.getElementById("adminHistoryTable");
+  if(historyTbody){
+    historyTbody.innerHTML="";
+  }
 
   const orgInput=document.getElementById("adminTeacherOrganization");
   if(orgInput){
     orgInput.value=adminOrg;
+    orgInput.readOnly=!superAdmin;
   }
 
   scopedProfiles.forEach(p=>{
@@ -10842,6 +10939,18 @@ async function renderAdminDashboard(){
     const roleValue=cleanText(p.role||"teacher");
     const statusValue=cleanText(p.status||"active");
     const isSelf=p.id===currentUser?.id;
+    const isProtectedSuperAdmin=roleValue==="super_admin"&&!isSelf;
+    const canEditRow=superAdmin
+      ? !isSelf&&!isProtectedSuperAdmin
+      : !isSelf&&!["admin","super_admin"].includes(roleValue);
+    const roleOptions=superAdmin
+      ? [
+        ["teacher","teacher"],
+        ["manager","manager"],
+        ["admin","机构管理员"],
+        ["super_admin","平台总管理员"]
+      ]
+      : [["teacher","teacher"],["manager","manager"],...(roleValue==="admin" ? [["admin","机构管理员"]] : [])];
 
     const tr=document.createElement("tr");
     tr.innerHTML=`
@@ -10860,22 +10969,61 @@ async function renderAdminDashboard(){
       <td>${history.length}</td>
       <td>
         <div style="display:flex;flex-direction:column;gap:8px;min-width:150px;">
-          <select id="adminRole_${p.id}" ${isSelf?'disabled':''}>
-            <option value="teacher" ${roleValue==="teacher"?"selected":""}>teacher</option>
-            <option value="manager" ${roleValue==="manager"?"selected":""}>manager</option>
-            <option value="admin" ${roleValue==="admin"?"selected":""}>admin</option>
+          <select id="adminRole_${p.id}" ${canEditRow?'':'disabled'}>
+            ${roleOptions.map(([value,label])=>`<option value="${value}" ${roleValue===value?"selected":""}>${label}</option>`).join("")}
           </select>
-          <select id="adminStatus_${p.id}" ${isSelf?'disabled':''}>
+          <select id="adminStatus_${p.id}" ${canEditRow?'':'disabled'}>
             <option value="active" ${statusValue==="active"?"selected":""}>active</option>
             <option value="inactive" ${statusValue==="inactive"?"selected":""}>inactive</option>
           </select>
-          <button class="small-btn" onclick="updateEmployeeFromAdmin('${p.id}')" ${isSelf?'disabled':''}>保存角色/状态</button>
-          <button class="small-btn" onclick="resetEmployeePasswordByAdmin('${p.id}')">重置密码</button>
+          <button class="small-btn" onclick="updateEmployeeFromAdmin('${p.id}')" ${canEditRow?'':'disabled'}>保存角色/状态</button>
+          <button class="small-btn" onclick="resetEmployeePasswordByAdmin('${p.id}')" ${canEditRow||isSelf?'':'disabled'}>重置密码</button>
         </div>
       </td>
     `;
     tbody.appendChild(tr);
   });
+
+  if(historyTbody){
+    const profileById={};
+    scopedProfiles.forEach(p=>{
+      profileById[p.id]=p;
+    });
+
+    const allHistory=[];
+    Object.entries(dataMap).forEach(([userId,d])=>{
+      const profile=profileById[userId]||{};
+      (d.history||[]).forEach(record=>{
+        allHistory.push({
+          ...record,
+          _teacher:profile.teacher_name||record.teacherName||"",
+          _org:profile.organization_name||record.organization_name||""
+        });
+      });
+    });
+
+    allHistory
+      .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
+      .slice(0,120)
+      .forEach(record=>{
+        const tr=document.createElement("tr");
+        const text=cleanText(record.resultText||"").slice(0,120);
+        tr.innerHTML=`
+          <td>${record.createdAt?new Date(record.createdAt).toLocaleString():""}</td>
+          <td>${record._org||""}</td>
+          <td>${record._teacher||""}</td>
+          <td>${record.studentName||""}</td>
+          <td>${record.courseType||""}</td>
+          <td>${record.topic||""}</td>
+          <td>${text}${text.length>=120?"...":""}</td>
+        `;
+        historyTbody.appendChild(tr);
+      });
+
+    if(!allHistory.length){
+      historyTbody.innerHTML='<tr><td colspan="7">暂无课评记录</td></tr>';
+    }
+  }
 
   document.getElementById("adminUserCount").innerText=scopedProfiles.length;
   document.getElementById("adminClassCount").innerText=totalClasses;
