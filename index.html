@@ -3003,6 +3003,7 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
       <div id="currentTeacherNameText">未登录</div>
       <div id="currentTeacherEmailText" style="font-size:13px;color:#64748b;font-weight:650;"></div>
       <div id="cloudSyncStatus" class="sync-status">未开始同步</div>
+      <div id="activeDataContextText" class="sync-status" style="display:none;"></div>
     </div>
   </div>
 
@@ -3906,6 +3907,11 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   管理员可以查看注册用户资料、最近登录时间、每位老师创建的班级、学生和历史课评数量。密码由 Supabase Auth 安全处理，不会明文保存，也不会在后台展示。
 </div>
 
+<div class="tips admin-only" id="adminDataContextCard">
+  当前操作数据：<strong id="adminActiveDataLabel">我的账号</strong>
+  <button class="small-btn" type="button" onclick="resetAdminDataContextToSelf()" style="margin-left:10px;">切回我的账号数据</button>
+</div>
+
 <div id="adminCreateCard" class="admin-create-card admin-only admin-block">
   <div class="admin-create-title">新增老师账号</div>
   <div class="row">
@@ -4710,6 +4716,9 @@ let appData=loadAppData();
 let currentFeedbackMode="single";
 let groupResults=[];
 let groupPanelDrafts={};
+let activeDataContext={type:"self",userId:"",label:"我的账号",profile:null};
+let adminScopedProfiles=[];
+let adminScopedDataMap={};
 
 function openSuggestModal(){
   document.getElementById("suggestModal").style.display="flex";
@@ -5686,7 +5695,9 @@ function showPage(pageId,btn){
   document.getElementById(pageId).classList.add("active");
 
   document.querySelectorAll(".bottom-nav-btn").forEach(button=>button.classList.remove("active"));
-  btn.classList.add("active");
+  if(btn){
+    btn.classList.add("active");
+  }
 
   renderClassSelects();
 
@@ -7876,6 +7887,47 @@ function refreshLucideIcons(){
   }
 }
 
+function getActiveDataOwnerName(){
+  return cleanText(activeDataContext?.profile?.teacher_name)||cleanText(activeDataContext?.label)||getRegisteredTeacherName();
+}
+
+function isAdminViewingEmployeeData(){
+  return activeDataContext?.type==="employee" && activeDataContext.userId && activeDataContext.userId!==currentUser?.id;
+}
+
+function updateActiveDataContextUI(){
+  const label=getActiveDataOwnerName();
+  const textEl=document.getElementById("activeDataContextText");
+  const adminLabel=document.getElementById("adminActiveDataLabel");
+
+  if(textEl){
+    if(isAdminViewingEmployeeData()){
+      textEl.style.display="inline-flex";
+      textEl.innerText=`当前查看：${label} 的员工数据`;
+    }else{
+      textEl.style.display="none";
+      textEl.innerText="";
+    }
+  }
+
+  if(adminLabel){
+    adminLabel.innerText=isAdminViewingEmployeeData()?`${label} 的员工数据`:"我的账号";
+  }
+}
+
+function refreshDataDrivenViews(){
+  renderClassSelects();
+  renderHistory();
+  renderAnalytics?.();
+  renderStudentArchiveOptions?.();
+  updateStudentArchive?.();
+  renderAIStudentOptions?.();
+  renderGrowthPosterOptions?.();
+  syncRuleRiskModeUI?.();
+  updateActiveDataContextUI();
+  refreshLucideIcons?.();
+}
+
 function init(){
   ensureCustomTagStore();
   renderProfileSubjects([]);
@@ -7986,7 +8038,7 @@ function generateWeeklyReport(){
     .slice(0,5);
 
   const report=`
-【未来猴本周课后反馈周报】
+【${getActiveDataOwnerName()}本周课后反馈周报】
 
 一、本周课评概况
 本周共生成课评 ${records.length} 条，涉及学生 ${students.length} 人。
@@ -8022,7 +8074,7 @@ function generateMonthlyReport(){
     .slice(0,8);
 
   const report=`
-【${getRegisteredTeacherName()}本月课后反馈月报】
+【${getActiveDataOwnerName()}本月课后反馈月报】
 
 一、本月课评概况
 本月共生成课评 ${records.length} 条，涉及学生 ${students.length} 人，覆盖班级 ${classes.length} 个。
@@ -10756,12 +10808,9 @@ async function loadCloudAppData(){
 
     if(data?.data){
       appData=ensureCustomTagStore(data.data);
+      activeDataContext={type:"self",userId:currentUser.id,label:getRegisteredTeacherName(),profile:currentProfile};
       localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
-      renderClassSelects();
-      renderHistory();
-      renderAIStudentOptions?.();
-      renderGrowthPosterOptions?.();
-      syncRuleRiskModeUI?.();
+      refreshDataDrivenViews();
       setCloudSyncStatus("synced");
     }else{
       await saveCloudAppData();
@@ -10770,16 +10819,18 @@ async function loadCloudAppData(){
     console.error("loadCloudAppData failed:",error);
     setCloudSyncStatus("failed","云端读取失败，已使用本地数据");
     appData=ensureCustomTagStore(loadAppData());
-    renderClassSelects();
-    renderHistory();
-    renderAIStudentOptions?.();
-    renderGrowthPosterOptions?.();
-    syncRuleRiskModeUI?.();
+    activeDataContext={type:"self",userId:currentUser.id,label:getRegisteredTeacherName(),profile:currentProfile};
+    refreshDataDrivenViews();
   }
 }
 
 async function saveCloudAppData(){
   if(!supabaseClient||!currentUser)return;
+
+  if(isAdminViewingEmployeeData()){
+    setCloudSyncStatus("synced","管理员查看员工数据：未写入员工云端");
+    return;
+  }
 
   if(cloudSaveInFlight){
     cloudSaveQueued=true;
@@ -10822,6 +10873,13 @@ async function saveCloudAppData(){
 const originalLocalSaveAppData = saveAppData;
 
 saveAppData=function(){
+  if(isAdminViewingEmployeeData()){
+    ensureCustomTagStore();
+    setCloudSyncStatus("synced","管理员查看员工数据：未写入员工云端");
+    updateActiveDataContextUI();
+    return;
+  }
+
   localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
   scheduleCloudSave();
 };
@@ -10845,6 +10903,64 @@ async function logout(){
 
   localStorage.removeItem(STORAGE_KEY);
   location.reload();
+}
+
+async function resetAdminDataContextToSelf(){
+  if(!currentUser){
+    return;
+  }
+
+  await loadCloudAppData();
+  setCloudSyncStatus("synced","已切回我的账号数据");
+  updateActiveDataContextUI();
+}
+
+async function useAdminEmployeeData(userId){
+  if(!canAccessAdminDashboard(currentProfile)){
+    alert("仅管理员可查看员工数据。");
+    return;
+  }
+
+  const profile=adminScopedProfiles.find(p=>p.id===userId);
+  if(!profile){
+    alert("未找到该员工资料，请刷新管理员后台后再试。");
+    return;
+  }
+
+  try{
+    let data=adminScopedDataMap[userId];
+
+    if(!data){
+      const {data:row,error}=await supabaseClient
+        .from("teacher_app_data")
+        .select("data")
+        .eq("user_id",userId)
+        .single();
+
+      if(error){
+        throw error;
+      }
+
+      data=row?.data||{classes:[],students:[],history:[]};
+      adminScopedDataMap[userId]=data;
+    }
+
+    appData=ensureCustomTagStore(data||{classes:[],students:[],history:[]});
+    activeDataContext={
+      type:userId===currentUser?.id?"self":"employee",
+      userId,
+      label:profile.teacher_name||profile.email||"员工",
+      profile
+    };
+
+    refreshDataDrivenViews();
+    setCloudSyncStatus("synced",userId===currentUser?.id?"已切回我的账号数据":`正在查看 ${getActiveDataOwnerName()} 的员工数据`);
+
+    const aiBtn=document.querySelector('.bottom-nav-btn[onclick*="aiAnalysisPage"]');
+    showPage("aiAnalysisPage",aiBtn);
+  }catch(error){
+    alert(`读取员工数据失败：${error.message}`);
+  }
 }
 
 function openProfileEditor(){
@@ -10909,6 +11025,10 @@ async function renderAdminDashboard(){
     dataMap[row.user_id]=row.data||{};
   });
 
+  adminScopedProfiles=scopedProfiles;
+  adminScopedDataMap=dataMap;
+  updateActiveDataContextUI();
+
   let totalClasses=0;
   let totalStudents=0;
   let totalHistory=0;
@@ -10939,6 +11059,7 @@ async function renderAdminDashboard(){
     const roleValue=cleanText(p.role||"teacher");
     const statusValue=cleanText(p.status||"active");
     const isSelf=p.id===currentUser?.id;
+    const hasData=Object.prototype.hasOwnProperty.call(dataMap,p.id);
     const isProtectedSuperAdmin=roleValue==="super_admin"&&!isSelf;
     const canEditRow=superAdmin
       ? !isSelf&&!isProtectedSuperAdmin
@@ -10978,6 +11099,7 @@ async function renderAdminDashboard(){
           </select>
           <button class="small-btn" onclick="updateEmployeeFromAdmin('${p.id}')" ${canEditRow?'':'disabled'}>保存角色/状态</button>
           <button class="small-btn" onclick="resetEmployeePasswordByAdmin('${p.id}')" ${canEditRow||isSelf?'':'disabled'}>重置密码</button>
+          <button class="small-btn" onclick="useAdminEmployeeData('${p.id}')" ${hasData?'':'disabled'}>${isSelf?"使用我的数据":"使用数据生成分析/海报"}</button>
         </div>
       </td>
     `;
