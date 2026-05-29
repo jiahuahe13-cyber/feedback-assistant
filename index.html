@@ -2919,6 +2919,349 @@ V4.0 邮箱注册登录 + 老师资料 + Supabase 云端数据
   }
 }
 
+/* =====================
+V4.1 手机浏览器强适配
+===================== */
+@media(max-width:640px){
+  *{
+    box-sizing:border-box;
+  }
+
+  html,
+  body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  body{
+    padding:8px 8px 86px !important;
+    background:#f6f8fb !important;
+  }
+
+  .container{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:14px !important;
+    border-radius:18px !important;
+    overflow:hidden;
+  }
+
+  .top-bar{
+    width:100% !important;
+    min-height:58px !important;
+    margin:0 0 8px !important;
+    padding:8px 12px !important;
+    border-radius:16px !important;
+    box-shadow:0 8px 24px rgba(15,23,42,.06) !important;
+  }
+
+  .top-logo{
+    width:76px !important;
+    height:42px !important;
+    object-fit:contain !important;
+  }
+
+  .top-name{
+    font-size:18px !important;
+    max-width:52vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .auth-bar{
+    width:100% !important;
+    margin:0 0 8px !important;
+    padding:10px 12px !important;
+    border-radius:18px !important;
+    gap:8px !important;
+  }
+
+  .auth-user-info{
+    width:100%;
+    min-width:0;
+  }
+
+  .auth-user-meta{
+    min-width:0;
+    flex:1;
+  }
+
+  #currentTeacherNameText,
+  #currentTeacherEmailText{
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .auth-actions{
+    display:flex !important;
+    width:100%;
+    gap:8px !important;
+    flex-wrap:nowrap !important;
+  }
+
+  .auth-small-btn{
+    flex:1;
+    width:auto !important;
+    min-height:40px !important;
+    padding:8px 8px !important;
+    font-size:12px !important;
+    white-space:normal !important;
+  }
+
+  .hero-section{
+    min-height:auto !important;
+    padding:22px 16px 18px !important;
+    border-radius:20px !important;
+    margin-bottom:10px !important;
+  }
+
+  .hero-title{
+    font-size:31px !important;
+    line-height:1.12 !important;
+    letter-spacing:0 !important;
+    max-width:100% !important;
+  }
+
+  .hero-subtitle,
+  .hero-slogan{
+    font-size:15px !important;
+    line-height:1.55 !important;
+  }
+
+  .hero-badge,
+  .hero-status{
+    transform:scale(.92);
+    transform-origin:center;
+  }
+
+  .home-config-card,
+  .card,
+  .group-student-panel,
+  .growth-panel,
+  .poster-editor-panel,
+  .award-editor-box,
+  .admin-create-card,
+  .admin-data-card,
+  .analytics-card{
+    border-radius:18px !important;
+    padding:16px !important;
+    max-width:100% !important;
+    overflow:hidden;
+  }
+
+  .row,
+  .filter-bar,
+  .stats-grid,
+  .admin-grid{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  .section-title,
+  .card-title,
+  .admin-create-title{
+    word-break:break-word;
+    line-height:1.25;
+  }
+
+  .section-title{
+    font-size:22px !important;
+    align-items:flex-start !important;
+  }
+
+  label,
+  .icon-label{
+    font-size:15px !important;
+    line-height:1.45 !important;
+  }
+
+  .input-icon-wrap{
+    width:100% !important;
+  }
+
+  input,
+  select,
+  textarea{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    font-size:16px !important;
+    border-radius:14px !important;
+  }
+
+  textarea{
+    min-height:160px !important;
+  }
+
+  #result,
+  #reportResult,
+  #studentGrowthReport,
+  #aiAnalysisResult,
+  #ruleDealResult,
+  #growthReportText{
+    min-height:260px !important;
+  }
+
+  .actions,
+  .home-config-actions{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+
+  .btn,
+  .generate-btn,
+  .copy-btn,
+  .small-btn,
+  .danger-btn,
+  .gray-btn,
+  .change-btn{
+    width:100% !important;
+    max-width:100% !important;
+    min-height:46px !important;
+    white-space:normal !important;
+    line-height:1.35 !important;
+    padding:10px 12px !important;
+  }
+
+  .title-row{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:8px !important;
+  }
+
+  .tags,
+  .profile-subject-list,
+  .home-subject-list,
+  .admin-subject-list,
+  .student-check-list{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    gap:8px !important;
+    max-width:100% !important;
+  }
+
+  .tags button,
+  .profile-subject-list button,
+  .home-subject-list button,
+  .admin-subject-list button,
+  .student-check-item{
+    flex:0 1 auto;
+    max-width:100%;
+    margin:0 !important;
+    padding:9px 12px !important;
+    min-height:40px !important;
+    white-space:normal !important;
+    word-break:break-word;
+    line-height:1.35 !important;
+    font-size:14px !important;
+  }
+
+  .search-tag-box{
+    width:100% !important;
+  }
+
+  .search-tag-box input{
+    padding-left:42px !important;
+  }
+
+  .admin-table-wrap{
+    width:100% !important;
+    max-width:100% !important;
+    overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch;
+    border-radius:16px !important;
+  }
+
+  .admin-table{
+    min-width:980px !important;
+  }
+
+  .growth-poster{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    padding:18px !important;
+    border-radius:24px !important;
+    transform:none !important;
+  }
+
+  .poster-title{
+    font-size:28px !important;
+    line-height:1.15 !important;
+  }
+
+  .poster-radar-card{
+    height:auto !important;
+    min-height:280px !important;
+  }
+
+  #posterRadarChart,
+  #growthRadarChart,
+  #monthlyGrowthChart{
+    max-width:100% !important;
+    max-height:300px !important;
+  }
+
+  .poster-award-main,
+  .poster-footer{
+    grid-template-columns:1fr !important;
+  }
+
+  .bottom-nav.apple-bottom-nav{
+    left:8px !important;
+    right:8px !important;
+    bottom:8px !important;
+    transform:none !important;
+    width:auto !important;
+    max-width:none !important;
+    display:flex !important;
+    grid-template-columns:none !important;
+    gap:6px !important;
+    padding:7px !important;
+    border-radius:22px !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+
+  .bottom-nav.apple-bottom-nav::-webkit-scrollbar{
+    display:none;
+  }
+
+  .bottom-nav.apple-bottom-nav .bottom-nav-btn{
+    flex:0 0 76px !important;
+    min-width:76px !important;
+    min-height:54px !important;
+    padding:6px 4px !important;
+    border-radius:16px !important;
+    font-size:12px !important;
+    gap:4px !important;
+  }
+
+  .bottom-nav.apple-bottom-nav .bottom-nav-btn span{
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .bottom-nav.apple-bottom-nav .bottom-nav-btn svg{
+    width:20px !important;
+    height:20px !important;
+  }
+}
+
 </style>
 </head>
 
