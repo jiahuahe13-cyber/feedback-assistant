@@ -7563,6 +7563,61 @@ function buildGrowthEvidenceModules(data){
   };
 }
 
+function stripFeedbackLabel(text){
+  return cleanText(text).replace(/^[^：:]{2,12}[：:]\s*/,"");
+}
+
+function compactFeedbackItems(list,count=3){
+  return [...new Set((list||[]).map(stripFeedbackLabel).filter(Boolean))].slice(0,count);
+}
+
+function buildNaturalTeacherSection(data,modules,basicEntries){
+  const good=compactFeedbackItems(data.professionalGood,3);
+  const weak=compactFeedbackItems(data.professionalWeak,3);
+  const improve=compactFeedbackItems(data.professionalImprove,3);
+  const focus=compactFeedbackItems(modules.parentFocus,2);
+  const evidence=compactFeedbackItems(modules.growthEvidence,2);
+  const teaching=compactFeedbackItems(modules.teachingActions,2);
+  const parent=compactFeedbackItems(modules.parentAdvice,2);
+  const student=data.studentName||"孩子";
+  const topic=data.topic||"本节课";
+
+  let text=`
+🌟 今日课堂反馈：
+`;
+
+  if(good.length){
+    text+=`${student}今天在《${topic}》这节课里，比较明显的优点是${good.join("、")}。这些表现说明孩子不是只是在完成任务，而是在理解、尝试和表达中慢慢建立自己的学习方法。\n`;
+  }else if(focus.length){
+    text+=`${student}今天在《${topic}》这节课里，整体课堂表现可以从几个细节看出来：${focus.join("；")}。\n`;
+  }else{
+    text+=`${student}今天能够跟着课堂节奏完成本节学习任务，整体参与情况是正常的，后续继续把课堂细节做得更稳。\n`;
+  }
+
+  if(basicEntries.length){
+    text+=`\n课堂中我重点观察到：${basicEntries.map(item=>`${item.label}是${item.value}`).join("；")}。`;
+  }
+
+  if(evidence.length){
+    text+=`\n从今天的过程看，${evidence.join("；")}。`;
+  }
+
+  if(weak.length){
+    text+=`\n\n🔎 需要继续加强：\n${student}目前还需要继续加强的是${weak.join("、")}。这些不是孩子“不会”，更多是课堂过程里的习惯、方法或细节还没有完全稳定下来，所以后续会继续通过课堂任务慢慢带。`;
+  }
+
+  const nextSteps=improve.length?improve:teaching;
+  if(nextSteps.length){
+    text+=`\n\n📌 后续课堂我会这样带：\n接下来的课堂里，我会重点放在${nextSteps.join("、")}上，让孩子在每一次练习里都能看见具体进步，而不是只停留在“表现不错”这种笼统评价。`;
+  }
+
+  if(parent.length){
+    text+=`\n\n🏠 家长在家可以这样配合：\n课后家长可以简单让孩子说一说今天学了什么、哪一步最有收获，也可以配合做到：${parent.join("；")}。这样孩子课堂上的进步会更容易被看见，也更容易延续到下一次学习。`;
+  }
+
+  return text.trim();
+}
+
 function buildFeedbackFromData(data){
   const modules=buildGrowthEvidenceModules(data);
   const basicEntries=getBasicStateEntries(data);
@@ -7580,31 +7635,9 @@ ${data.courseContent}
 `;
   }
 
-  if(basicEntries.length){
-    feedback+=`
-
-🧠 课堂状态：
-${basicEntries.map(item=>`${item.icon} ${item.label}：${item.value}`).join("\n")}
-`;
-  }
-
   feedback+=`
 
-🌱 家长看得懂的成长证据：
-`;
-
-  feedback+=`
-1. 家长关注点
-${modules.parentFocus.map(item=>`• ${item}`).join("\n")}
-
-2. 能力成长证据
-${modules.growthEvidence.map(item=>`• ${item}`).join("\n")}
-
-3. 后续教学动作
-${modules.teachingActions.map(item=>`• ${item}`).join("\n")}
-
-4. 家长配合建议
-${modules.parentAdvice.map(item=>`• ${item}`).join("\n")}
+${buildNaturalTeacherSection(data,modules,basicEntries)}
 `;
 
   if(data.homework){
