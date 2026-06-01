@@ -2949,7 +2949,47 @@ V4.1 手机浏览器强适配
   }
 
   .top-bar{
+    position:fixed !important;
+    right:14px !important;
+    bottom:86px !important;
+    z-index:1000 !important;
+    display:block !important;
+    width:auto !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    backdrop-filter:none !important;
+  }
+
+  .top-bar .top-left{
     display:none !important;
+  }
+
+  .top-bar .suggest-btn{
+    width:50px !important;
+    height:50px !important;
+    min-width:50px !important;
+    padding:0 !important;
+    border-radius:999px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    background:rgba(255,255,255,.94) !important;
+    border:1px solid rgba(226,232,240,.9) !important;
+    box-shadow:0 12px 28px rgba(15,23,42,.16) !important;
+  }
+
+  .top-bar .suggest-btn span{
+    display:none !important;
+  }
+
+  .top-bar .suggest-btn svg{
+    width:23px !important;
+    height:23px !important;
   }
 
   .top-name{
